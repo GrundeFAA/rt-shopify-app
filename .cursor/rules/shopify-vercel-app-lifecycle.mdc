@@ -1,21 +1,49 @@
 ---
-description: Shopify app concerns for Vercel hosting and app lifecycle events
+description: Shopify app concerns for Vercel hosting, webhooks, and idempotency
 alwaysApply: true
 ---
 
-# Shopify and Deployment Constraints
+# Shopify and Deployment
 
-- Assume deployment target is Vercel.
-- Build app behavior to work as a proper Shopify app behind the required proxy setup.
+- Deployment target is Vercel. App runs as a proxied Shopify embedded app.
 - Keep Shopify-specific integration logic isolated from core domain services.
+- Webhook registration and app bootstrap happen at deployment/runtime startup.
 
-# Lifecycle and Webhooks
+# Webhook Routes
 
-- Ensure webhook registration and app setup tasks are handled as part of deployment/runtime bootstrap flows.
-- Make webhook handlers idempotent and safe to retry.
-- Keep webhook processing logic in services, not in thin HTTP handlers.
+- Shopify webhooks are HTTP POST endpoints in `src/app/api/webhooks/shopify/`.
+- They must never be tRPC procedures — Shopify calls plain HTTP, not tRPC.
+- The route handler is thin: parse, verify, delegate to a service, return 200.
+- Business logic lives in services, not in the route handler.
+
+```ts
+// Correct shape for a webhook route handler
+export async function POST(request: Request) {
+  const payload = await request.json() as unknown;
+  // TODO: verify Shopify HMAC here before any processing
+  const result = await shopifyWebhookService.handleCustomerCreate(db, payload);
+  return NextResponse.json({ ok: true, result });
+}
+```
+
+# Idempotency
+
+All webhook-triggered write operations must be safe to call multiple times with the same input.
+
+- Use `upsert` not `create` for state that should only exist once per entity.
+- Use a "find existing, skip if found" guard before any insert that should not duplicate.
+- Race-safe uniqueness: add a `@@unique` or `@unique` DB constraint on natural keys,
+  catch `P2002` (unique violation) and re-read instead of failing.
+
+```ts
+// BAD — duplicates on retry
+await db.membershipRequest.create({ data: { ... } });
+
+// GOOD — idempotent
+await membershipRequestRepository.ensurePendingRequest(db, { ... });
+```
 
 # Operational Safety
 
-- Prefer explicit logging and error handling for external Shopify calls.
-- Keep integration boundaries clear so future non-Shopify features can evolve independently.
+- Log errors from all external Shopify API calls explicitly.
+- Never swallow errors silently in webhook handlers — return 400 so Shopify retries.

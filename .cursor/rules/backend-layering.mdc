@@ -5,21 +5,43 @@ alwaysApply: true
 
 # Backend Layering
 
-- Keep backend logic separated into:
-  - `repositories`: data access and query composition.
-  - `services`: business workflows and orchestration.
-  - `trpc routers`: transport and input/output boundaries only.
-- Do not place business logic directly in tRPC procedures.
-- Do not call the database directly from route handlers when a repository exists.
-- Keep services framework-agnostic where practical.
+The only valid data flow is: `tRPC router -> service -> repository -> database`
 
-# Data and Contracts
+- `repositories`: data access only. No business logic.
+- `services`: business workflows and orchestration. No direct `ctx.db` or `db.*` calls.
+- `trpc routers`: input validation and transport only. No DB calls, no business logic.
+
+**Never** call `ctx.db` or `db.*` directly inside a tRPC router procedure.
+**Never** call `db.*` directly inside a service — call the appropriate repository method.
+
+```ts
+// BAD — DB access inside a router procedure
+listPendingMemberships: publicProcedure.query(async ({ ctx }) => {
+  return ctx.db.companyMember.findMany({ where: { status: "PENDING" } });
+});
+
+// GOOD — router delegates to repository
+listPendingMemberships: publicProcedure.query(async ({ ctx }) => {
+  return companyMemberRepository.listPendingWithCompany(ctx.db);
+});
+```
+
+# Repository Conventions
+
+- Name methods by domain intent, not by SQL shape.
+  - Good: `listPendingWithCompany`, `findOrCreate`, `ensurePendingRequest`
+  - Avoid: `selectWherePending`, `insertIfNotExists`
+- Keep each method single-purpose and predictable.
+
+# Data and Validation
 
 - Use PostgreSQL as the primary data store.
-- Keep repository methods small, predictable, and named by domain intent.
-- Validate route inputs and outputs at boundaries.
+- Validate all external inputs at the router boundary with Zod schemas defined in `schemas.ts`.
+- Schemas live in `src/server/modules/<feature>/schemas.ts` — not inline in the router.
 
-# Example Direction
+# tRPC Procedures and Public Surface
 
-- Good: `router -> service -> repository -> database`
-- Avoid: `router -> database` for business use-cases
+- All admin or internal operations must use a protected procedure, not `publicProcedure`.
+- `publicProcedure` is only for customer-facing read operations that are safe without auth.
+- Webhook entry points must be Next.js route handlers (`src/app/api/...`), never tRPC procedures.
+  Shopify calls HTTP endpoints directly — tRPC adds nothing and exposes operations without auth.

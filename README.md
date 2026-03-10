@@ -1,29 +1,30 @@
-# Create T3 App
+# RT Shopify B2B App
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Proof-of-concept full-stack app for extending Shopify customer accounts with B2B company membership models.
 
-## What's next? How do I make an app with this?
+## Current scope
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- PostgreSQL + Prisma data model for companies and company memberships
+- tRPC API with service/repository layering
+- Shopify customer webhook endpoints (`customers/create`, `customers/update`)
+- Basic customer-facing `/b2b-dashboard` route for approved/pending membership state
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Architecture notes
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+- Shopify remains source of truth for auth and commerce data
+- App database is source of truth for company and membership state
+- Backend flow follows `router -> service -> repository -> database`
 
-## Learn More
+See `B2B_ARCHITECTURE.md` for functional and domain details.
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+## Local setup
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+1. Copy `.env.example` to `.env`
+2. Set `DATABASE_URL`
+3. Run migrations
+4. Start app
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+```bash
+npm run db:push
+npm run dev
+```

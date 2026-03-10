@@ -11,11 +11,61 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum CompanyStatus {
+    ACTIVE
+    INACTIVE
+}
+
+enum MemberRole {
+    ADMIN
+    USER
+}
+
+enum MembershipStatus {
+    PENDING
+    APPROVED
+    DENIED
+}
+
+model Company {
+    id         String         @id @default(cuid())
+    name       String
+    orgNumber  String?        @unique
+    status     CompanyStatus  @default(ACTIVE)
+    createdAt  DateTime       @default(now())
+    updatedAt  DateTime       @updatedAt
+    members    CompanyMember[]
+    requests   MembershipRequest[]
 
     @@index([name])
+    @@index([orgNumber])
+}
+
+model CompanyMember {
+    id                String           @id @default(cuid())
+    companyId         String
+    shopifyCustomerId String
+    role              MemberRole       @default(USER)
+    status            MembershipStatus @default(PENDING)
+    createdAt         DateTime         @default(now())
+    updatedAt         DateTime         @updatedAt
+    company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+    @@unique([companyId, shopifyCustomerId])
+    @@index([shopifyCustomerId])
+    @@index([status])
+}
+
+model MembershipRequest {
+    id                String           @id @default(cuid())
+    companyId         String
+    shopifyCustomerId String
+    status            MembershipStatus @default(PENDING)
+    reason            String?
+    createdAt         DateTime         @default(now())
+    updatedAt         DateTime         @updatedAt
+    company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+    @@index([companyId, status])
+    @@index([shopifyCustomerId])
 }
