@@ -1,0 +1,25 @@
+---
+description: Service and repository layering with tRPC route boundaries
+alwaysApply: true
+---
+
+# Backend Layering
+
+- Keep backend logic separated into:
+  - `repositories`: data access and query composition.
+  - `services`: business workflows and orchestration.
+  - `trpc routers`: transport and input/output boundaries only.
+- Do not place business logic directly in tRPC procedures.
+- Do not call the database directly from route handlers when a repository exists.
+- Keep services framework-agnostic where practical.
+
+# Data and Contracts
+
+- Use PostgreSQL as the primary data store.
+- Keep repository methods small, predictable, and named by domain intent.
+- Validate route inputs and outputs at boundaries.
+
+# Example Direction
+
+- Good: `router -> service -> repository -> database`
+- Avoid: `router -> database` for business use-cases

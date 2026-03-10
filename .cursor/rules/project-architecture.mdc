@@ -1,0 +1,21 @@
+---
+description: Core architecture and scalability conventions for the Shopify app
+alwaysApply: true
+---
+
+# Project Architecture
+
+- Treat this as a long-lived product, not a one-off feature.
+- Prefer feature-first structure with clear boundaries and shared modules only for true cross-feature concerns.
+- Keep a practical balance between DRY and separation of concerns:
+  - Reuse helpers only when duplication is meaningful and stable.
+  - Avoid premature abstraction.
+- Keep each module easy to reason about in isolation.
+- Prefer explicit and maintainable code over clever patterns.
+
+# T3 and Next.js Baseline
+
+- Respect T3 stack conventions already present in the project.
+- Use App Router patterns by default.
+- Use regular Next.js routes only when they are the better technical fit (for example webhook callbacks or external constraints).
+- Use tRPC for internal app routes and domain-facing API contracts.

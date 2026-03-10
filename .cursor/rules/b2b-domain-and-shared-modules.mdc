@@ -1,0 +1,22 @@
+---
+description: B2B-first domain modeling and shared module hygiene
+alwaysApply: true
+---
+
+# B2B Domain Direction
+
+- Design account extensions with B2B concepts in mind: companies, memberships, employees, and permissions.
+- Keep domain names business-oriented and avoid leaking UI or transport terms into domain models.
+- Expect requirements to evolve; optimize for clear refactoring paths.
+
+# Shared Module Hygiene
+
+- Shared folders are for stable cross-feature utilities, types, and primitives.
+- Keep feature-specific code inside feature modules.
+- Before moving logic to shared, verify at least two real consumers exist or strong near-term need is documented.
+
+# Maintainability Rules
+
+- Favor small, composable helpers.
+- Co-locate tests and schema/validation with the feature when practical.
+- Keep naming consistent across service, repository, and route layers.
