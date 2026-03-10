@@ -69,3 +69,4 @@ model MembershipRequest {
     @@index([companyId, status])
     @@index([shopifyCustomerId])
 }
+

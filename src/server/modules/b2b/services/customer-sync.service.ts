@@ -61,21 +61,46 @@ export const customerSyncService = {
       orgNumber: normalized.orgNumber,
     });
 
-    const member = await companyMemberRepository.upsertPending(db, {
+    const existingMember = await companyMemberRepository.findByCompanyAndCustomer(db, {
       companyId: company.id,
       shopifyCustomerId: customer.id,
     });
 
-    await membershipRequestRepository.ensurePendingRequest(db, {
+    if (existingMember) {
+      return {
+        companyId: company.id,
+        membershipId: existingMember.id,
+        status: existingMember.status,
+        role: existingMember.role,
+      };
+    }
+
+    const approvedCount = await companyMemberRepository.countApprovedMembers(
+      db,
+      company.id,
+    );
+    const isFirstCompanyMember = approvedCount === 0;
+
+    const member = await companyMemberRepository.create(db, {
       companyId: company.id,
       shopifyCustomerId: customer.id,
-      reason: "Auto-created from Shopify webhook",
+      role: isFirstCompanyMember ? "ADMIN" : "USER",
+      status: isFirstCompanyMember ? "APPROVED" : "PENDING",
     });
+
+    if (!isFirstCompanyMember) {
+      await membershipRequestRepository.ensurePendingRequest(db, {
+        companyId: company.id,
+        shopifyCustomerId: customer.id,
+        reason: "Auto-created from Shopify webhook",
+      });
+    }
 
     return {
       companyId: company.id,
       membershipId: member.id,
       status: member.status,
+      role: member.role,
     };
   },
 };

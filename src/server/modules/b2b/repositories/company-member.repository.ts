@@ -15,24 +15,21 @@ export const companyMemberRepository = {
     });
   },
 
-  upsertPending(
+  create(
     db: PrismaClient,
-    input: { companyId: string; shopifyCustomerId: string },
+    input: {
+      companyId: string;
+      shopifyCustomerId: string;
+      role: "ADMIN" | "USER";
+      status: "PENDING" | "APPROVED";
+    },
   ) {
-    return db.companyMember.upsert({
-      where: {
-        companyId_shopifyCustomerId: {
-          companyId: input.companyId,
-          shopifyCustomerId: input.shopifyCustomerId,
-        },
-      },
-      create: {
+    return db.companyMember.create({
+      data: {
         companyId: input.companyId,
         shopifyCustomerId: input.shopifyCustomerId,
-        status: "PENDING",
-      },
-      update: {
-        status: "PENDING",
+        role: input.role,
+        status: input.status,
       },
     });
   },
