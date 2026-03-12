@@ -4,6 +4,7 @@ import { z } from "zod";
 export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
+    SHOPIFY_APP_URL: z.string().url().default("http://localhost:3000"),
     SHOPIFY_CLIENT_SECRET: z.string().min(1),
     SHOPIFY_STORE_DOMAIN: z
       .string()
@@ -27,6 +28,7 @@ export const env = createEnv({
 
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
     SHOPIFY_CLIENT_SECRET: process.env.SHOPIFY_CLIENT_SECRET,
     SHOPIFY_STORE_DOMAIN: process.env.SHOPIFY_STORE_DOMAIN,
     SHOPIFY_ADMIN_ACCESS_TOKEN: process.env.SHOPIFY_ADMIN_ACCESS_TOKEN,

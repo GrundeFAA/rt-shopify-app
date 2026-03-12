@@ -14,6 +14,12 @@ scopes = "read_custom_fulfillment_services,write_custom_fulfillment_services,rea
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
+[auth]
+redirect_urls = [
+  "https://rt-shopify-app.vercel.app/",
+  "http://localhost:3000/"
+]
+
 [app_proxy]
 url = "https://rt-shopify-app.vercel.app/api/proxy/rt"
 subpath = "rt"
