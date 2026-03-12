@@ -7,12 +7,12 @@ const CONTEXT_TOKEN_TTL_MS = 5 * 60 * 1000;
 
 type ProxyContext = {
   shopDomain: string;
-  loggedInCustomerId: string;
+  loggedInCustomerId?: string;
 };
 
 type DashboardContextTokenPayload = {
   shopDomain: string;
-  loggedInCustomerId: string;
+  loggedInCustomerId?: string;
   exp: number;
 };
 
@@ -59,7 +59,6 @@ export const shopifyProxySignature = {
 
     if (!signature) throw new Error("Missing app proxy signature");
     if (!shopRaw) throw new Error("Missing shop");
-    if (!loggedInCustomerId) throw new Error("Missing logged_in_customer_id");
 
     const shopDomain = normalizeShopDomain(shopRaw);
     if (!SHOP_DOMAIN_REGEX.test(shopDomain)) {
@@ -76,12 +75,12 @@ export const shopifyProxySignature = {
       throw new Error("Invalid app proxy signature");
     }
 
-    return { shopDomain, loggedInCustomerId };
+    return { shopDomain, loggedInCustomerId: loggedInCustomerId || undefined };
   },
 
   createDashboardContextToken(input: {
     shopDomain: string;
-    loggedInCustomerId: string;
+    loggedInCustomerId?: string;
   }) {
     const payload: DashboardContextTokenPayload = {
       shopDomain: input.shopDomain,
@@ -113,7 +112,7 @@ export const shopifyProxySignature = {
       throw new Error("Invalid dashboard context token payload");
     }
 
-    if (!payload.loggedInCustomerId || !payload.shopDomain || !payload.exp) {
+    if (!payload.shopDomain || !payload.exp) {
       throw new Error("Incomplete dashboard context token");
     }
     if (Date.now() > payload.exp) {
@@ -125,7 +124,7 @@ export const shopifyProxySignature = {
 
     return {
       shopDomain: payload.shopDomain,
-      loggedInCustomerId: payload.loggedInCustomerId,
+      loggedInCustomerId: payload.loggedInCustomerId || undefined,
     };
   },
 };

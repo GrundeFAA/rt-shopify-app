@@ -16,9 +16,11 @@ export default async function B2BDashboardPage({
 }: B2BDashboardPageProps) {
   const params = await searchParams;
   const proxyToken = params.proxyToken;
+  let openedViaProxy = false;
 
   let customerId: string | undefined;
   if (proxyToken) {
+    openedViaProxy = true;
     try {
       customerId =
         shopifyProxySignature.verifyDashboardContextToken(proxyToken)
@@ -45,11 +47,22 @@ export default async function B2BDashboardPage({
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-6 py-12">
         <h1 className="text-2xl font-semibold">B2B Dashboard</h1>
         <section className="rounded border border-neutral-200 p-4">
-          <h2 className="font-medium">Missing customer context</h2>
-          <p className="text-sm text-neutral-600">
-            Open this page through the storefront app proxy endpoint:
-            <code className="ml-1">/apps/rt</code>
-          </p>
+          {openedViaProxy ? (
+            <>
+              <h2 className="font-medium">Customer login required</h2>
+              <p className="text-sm text-neutral-600">
+                Please log in to your customer account and open this page again.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="font-medium">Missing customer context</h2>
+              <p className="text-sm text-neutral-600">
+                Open this page through the storefront app proxy endpoint:
+                <code className="ml-1">/apps/rt</code>
+              </p>
+            </>
+          )}
           {env.NODE_ENV !== "production" ? (
             <p className="mt-2 text-sm text-neutral-600">
               Dev fallback: <code>/b2b-dashboard?customerId=123456789</code>
