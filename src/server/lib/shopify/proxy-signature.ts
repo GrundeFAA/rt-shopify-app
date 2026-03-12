@@ -27,8 +27,8 @@ const createHexDigest = (input: string) =>
   createHmac("sha256", env.SHOPIFY_CLIENT_SECRET).update(input).digest("hex");
 
 const secureHexEqual = (leftHex: string, rightHex: string) => {
-  const left = Buffer.from(leftHex, "utf8");
-  const right = Buffer.from(rightHex, "utf8");
+  const left = Buffer.from(leftHex.trim().toLowerCase(), "utf8");
+  const right = Buffer.from(rightHex.trim().toLowerCase(), "utf8");
   if (left.length !== right.length) return false;
   return timingSafeEqual(left, right);
 };
@@ -44,7 +44,7 @@ const serializeAppProxyMessage = (params: URLSearchParams) => {
   }
 
   return [...grouped.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, values]) => `${key}=${values.join(",")}`)
     .join("");
 };
@@ -63,10 +63,6 @@ export const shopifyProxySignature = {
     const shopDomain = normalizeShopDomain(shopRaw);
     if (!SHOP_DOMAIN_REGEX.test(shopDomain)) {
       throw new Error("Invalid shop domain");
-    }
-
-    if (shopDomain !== env.SHOPIFY_STORE_DOMAIN) {
-      throw new Error("Unexpected shop domain");
     }
 
     const message = serializeAppProxyMessage(searchParams);
@@ -118,10 +114,6 @@ export const shopifyProxySignature = {
     if (Date.now() > payload.exp) {
       throw new Error("Expired dashboard context token");
     }
-    if (payload.shopDomain !== env.SHOPIFY_STORE_DOMAIN) {
-      throw new Error("Unexpected shop in dashboard context token");
-    }
-
     return {
       shopDomain: payload.shopDomain,
       loggedInCustomerId: payload.loggedInCustomerId ?? undefined,
