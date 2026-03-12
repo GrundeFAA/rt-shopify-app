@@ -1,4 +1,7 @@
+import { createHmac } from "node:crypto";
+
 import { db } from "#/server/db";
+import { env } from "#/env";
 import { dashboardService } from "#/server/modules/b2b/services/dashboard.service";
 import { shopifyProxySignature } from "#/server/lib/shopify/proxy-signature";
 
@@ -11,6 +14,35 @@ const htmlResponse = (body: string) =>
 export async function GET(request: Request) {
   const url = new URL(request.url);
 
+  // ── DEBUG ────────────────────────────────────────────────────────────────
+  console.log("[proxy-debug] request.url       :", request.url);
+  console.log("[proxy-debug] search string     :", url.search);
+
+  const allParams: Record<string, string> = {};
+  for (const [k, v] of url.searchParams.entries()) {
+    allParams[k] = v;
+  }
+  console.log("[proxy-debug] all params        :", JSON.stringify(allParams));
+
+  const sig = url.searchParams.get("signature");
+  const paramsForHmac = [...url.searchParams.entries()]
+    .filter(([k]) => k !== "signature")
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("");
+  const recomputed = createHmac("sha256", env.SHOPIFY_CLIENT_SECRET)
+    .update(paramsForHmac)
+    .digest("hex");
+  console.log("[proxy-debug] hmac message      :", paramsForHmac);
+  console.log("[proxy-debug] received sig      :", sig);
+  console.log("[proxy-debug] recomputed sig    :", recomputed);
+  console.log("[proxy-debug] sig match         :", sig === recomputed);
+  console.log(
+    "[proxy-debug] secret (last 6)  :",
+    env.SHOPIFY_CLIENT_SECRET.slice(-6),
+  );
+  // ── END DEBUG ─────────────────────────────────────────────────────────────
+
   let customerId: string | undefined;
 
   try {
@@ -19,7 +51,8 @@ export async function GET(request: Request) {
     );
     customerId = proxyContext.loggedInCustomerId;
   } catch (error) {
-    console.error("Invalid app proxy request", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[proxy-debug] verification failed:", msg);
     return htmlResponse(
       `<h1>Invalid request</h1><p>This page must be opened through the Shopify storefront.</p>`,
     );
