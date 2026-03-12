@@ -5,11 +5,13 @@ import { env } from "#/env";
 import { dashboardService } from "#/server/modules/b2b/services/dashboard.service";
 import { shopifyProxySignature } from "#/server/lib/shopify/proxy-signature";
 
-const htmlResponse = (body: string) =>
-  new Response(
-    `<!doctype html><html><head><meta charset="utf-8"><title>B2B Dashboard</title></head><body>${body}</body></html>`,
-    { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
-  );
+// application/liquid tells Shopify to render our content inside the store theme.
+// text/html bypasses the theme and causes theme JS to redirect to /404.
+const liquidResponse = (body: string) =>
+  new Response(body, {
+    status: 200,
+    headers: { "content-type": "application/liquid; charset=utf-8" },
+  });
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -53,13 +55,13 @@ export async function GET(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[proxy-debug] verification failed:", msg);
-    return htmlResponse(
+    return liquidResponse(
       `<h1>Invalid request</h1><p>This page must be opened through the Shopify storefront.</p>`,
     );
   }
 
   if (!customerId) {
-    return htmlResponse(
+    return liquidResponse(
       `<h1>Login required</h1><p>Please log in to your customer account to access the B2B dashboard.</p>`,
     );
   }
@@ -71,7 +73,7 @@ export async function GET(request: Request) {
     );
 
     if (dashboard.state === "PENDING_OR_MISSING") {
-      return htmlResponse(
+      return liquidResponse(
         `<h1>B2B Dashboard</h1><p>Your membership is pending approval. Please contact us if you need access.</p>`,
       );
     }
@@ -83,7 +85,7 @@ export async function GET(request: Request) {
       )
       .join("");
 
-    return htmlResponse(`
+    return liquidResponse(`
       <h1>B2B Dashboard</h1>
       <p>Customer: ${customerId}</p>
       <h2>Company</h2>
@@ -94,7 +96,7 @@ export async function GET(request: Request) {
     `);
   } catch (error) {
     console.error("App proxy dashboard render failed", error);
-    return htmlResponse(
+    return liquidResponse(
       `<h1>Error</h1><p>Something went wrong loading your dashboard. Please try again.</p>`,
     );
   }
