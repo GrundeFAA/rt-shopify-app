@@ -23,6 +23,7 @@ See `B2B_ARCHITECTURE.md` for functional and domain details.
 1. Copy `.env.example` to `.env`
 2. Set `DATABASE_URL`
 3. Set Shopify config:
+   - `SHOPIFY_CLIENT_SECRET` (used to verify app proxy request signatures)
    - `SHOPIFY_STORE_DOMAIN`
    - `SHOPIFY_ADMIN_ACCESS_TOKEN`
    - `SHOPIFY_WEBHOOK_BASE_URL` (your public tunnel URL, no trailing slash)
@@ -67,4 +68,15 @@ This command:
 
 Prerequisite: `cloudflared` CLI must be installed and available on PATH.
 Windows install example: `winget install Cloudflare.cloudflared`.
+
+## App proxy dashboard testing
+
+1. In Shopify, open the storefront proxy path:
+   - `/apps/rt`
+2. Verify the dashboard loads for logged-in customers and reflects:
+   - approved membership state
+   - pending/no-membership state
+3. Verify signature protection:
+   - Open `/api/proxy/rt` directly without signed Shopify params.
+   - Expected response: `401` with invalid proxy signature.
 

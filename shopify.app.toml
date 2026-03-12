@@ -1,8 +1,8 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "2b23a01a718035df4fab277d7223e139"
-name = "Custom-BC"
-application_url = "https://example.com"
+name = "rt-app"
+application_url = "https://rt-shopify-app.vercel.app"
 embedded = true
 
 [webhooks]
@@ -14,5 +14,7 @@ scopes = "read_custom_fulfillment_services,write_custom_fulfillment_services,rea
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
-[auth]
-redirect_urls = [ "http://localhost:3000/callback" ]
+[app_proxy]
+url = "https://rt-shopify-app.vercel.app/api/proxy/rt"
+subpath = "rt"
+prefix = "apps"

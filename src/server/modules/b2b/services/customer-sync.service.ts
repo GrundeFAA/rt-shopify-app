@@ -14,8 +14,6 @@ type ShopifyCustomerPayload = {
 type NormalizedNoteData = {
   companyName?: string;
   orgNumber?: string;
-  vat?: string;
-  phone?: string;
 };
 
 const normalizeCustomerNote = (note?: string | null): NormalizedNoteData => {
@@ -37,8 +35,6 @@ const normalizeCustomerNote = (note?: string | null): NormalizedNoteData => {
   return {
     companyName: lookup.get("company") ?? lookup.get("company_name"),
     orgNumber: lookup.get("org_number") ?? lookup.get("orgnr"),
-    vat: lookup.get("vat"),
-    phone: lookup.get("phone"),
   };
 };
 

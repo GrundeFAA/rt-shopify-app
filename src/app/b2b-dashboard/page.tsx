@@ -1,9 +1,12 @@
 import Link from "next/link";
 
+import { env } from "#/env";
+import { shopifyProxySignature } from "#/server/lib/shopify/proxy-signature";
 import { api } from "#/trpc/server";
 
 type B2BDashboardPageProps = {
   searchParams: Promise<{
+    proxyToken?: string;
     customerId?: string;
   }>;
 };
@@ -12,18 +15,47 @@ export default async function B2BDashboardPage({
   searchParams,
 }: B2BDashboardPageProps) {
   const params = await searchParams;
-  const customerId = params.customerId;
+  const proxyToken = params.proxyToken;
+
+  let customerId: string | undefined;
+  if (proxyToken) {
+    try {
+      customerId =
+        shopifyProxySignature.verifyDashboardContextToken(proxyToken)
+          .loggedInCustomerId;
+    } catch {
+      return (
+        <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-6 py-12">
+          <h1 className="text-2xl font-semibold">B2B Dashboard</h1>
+          <section className="rounded border border-red-300 bg-red-50 p-4">
+            <h2 className="font-medium">Invalid dashboard request</h2>
+            <p className="text-sm">
+              This page must be opened through the Shopify storefront app proxy.
+            </p>
+          </section>
+        </main>
+      );
+    }
+  } else if (env.NODE_ENV !== "production" && params.customerId) {
+    customerId = params.customerId;
+  }
 
   if (!customerId) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-6 py-12">
-        <h1 className="text-2xl font-semibold">B2B Dashboard (POC)</h1>
-        <p className="text-sm text-neutral-600">
-          Add a `customerId` query parameter to load a Shopify customer context.
-        </p>
-        <p className="text-sm text-neutral-600">
-          Example: <code>/b2b-dashboard?customerId=123456789</code>
-        </p>
+        <h1 className="text-2xl font-semibold">B2B Dashboard</h1>
+        <section className="rounded border border-neutral-200 p-4">
+          <h2 className="font-medium">Missing customer context</h2>
+          <p className="text-sm text-neutral-600">
+            Open this page through the storefront app proxy endpoint:
+            <code className="ml-1">/apps/rt</code>
+          </p>
+          {env.NODE_ENV !== "production" ? (
+            <p className="mt-2 text-sm text-neutral-600">
+              Dev fallback: <code>/b2b-dashboard?customerId=123456789</code>
+            </p>
+          ) : null}
+        </section>
         <Link href="/" className="text-sm underline">
           Back to home
         </Link>
