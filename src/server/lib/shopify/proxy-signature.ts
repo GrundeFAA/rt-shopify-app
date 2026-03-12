@@ -75,7 +75,7 @@ export const shopifyProxySignature = {
       throw new Error("Invalid app proxy signature");
     }
 
-    return { shopDomain, loggedInCustomerId: loggedInCustomerId || undefined };
+    return { shopDomain, loggedInCustomerId: loggedInCustomerId ?? undefined };
   },
 
   createDashboardContextToken(input: {
@@ -124,7 +124,7 @@ export const shopifyProxySignature = {
 
     return {
       shopDomain: payload.shopDomain,
-      loggedInCustomerId: payload.loggedInCustomerId || undefined,
+      loggedInCustomerId: payload.loggedInCustomerId ?? undefined,
     };
   },
 };
