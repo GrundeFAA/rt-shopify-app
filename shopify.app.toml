@@ -21,6 +21,6 @@ redirect_urls = [
 ]
 
 [app_proxy]
-url = "/api/b2b-proxy"
+url = "https://rt-shopify-app.vercel.app/api/b2b-proxy"
 subpath = "rt"
 prefix = "apps"
