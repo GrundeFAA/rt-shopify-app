@@ -5,6 +5,8 @@ name = "rt-app"
 application_url = "https://rt-shopify-app.vercel.app"
 embedded = true
 
+[build]
+
 [webhooks]
 api_version = "2026-01"
 
@@ -21,6 +23,6 @@ redirect_urls = [
 ]
 
 [app_proxy]
-url = "https://rt-shopify-app.vercel.app/api/b2b-proxy"
+url = "https://rt-shopify-app.vercel.app/b2b-proxy"
 subpath = "rt"
 prefix = "apps"
