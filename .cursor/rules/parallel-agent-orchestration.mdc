@@ -1,0 +1,15 @@
+---
+description: Parallel agent orchestration standards for this codebase
+alwaysApply: true
+---
+
+# Parallel Agent Orchestration
+
+- For multi-agent execution, follow `docs/runbooks/parallel-agent-delivery-model.md`.
+- Send orchestration prompts in chat only. Do not create prompt documents in `docs/`.
+- Agents should infer their role from chat context, then read their role doc in `docs/guides/roles/`.
+- Every work package must include explicit file ownership boundaries and non-overlap constraints.
+- Every work package must update `docs/specs/goal-<n>-progress.md` before it is considered complete.
+- Use the standard response template from the runbook for all role handoffs.
+- Architect may apply small, low-risk quick fixes during review; larger changes must be delegated as explicit work packages.
+

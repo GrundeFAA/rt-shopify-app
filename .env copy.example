@@ -1,0 +1,92 @@
+# ---------------------------------------
+# Shopify app core (required)
+# ---------------------------------------
+# Shopify app API key from Partner Dashboard / CLI env
+SHOPIFY_API_KEY=your_shopify_api_key
+
+# Shopify app API secret from Partner Dashboard / CLI env
+SHOPIFY_API_SECRET=your_shopify_api_secret
+
+# Comma-separated scopes used by app/shopify.server.ts
+# Example:
+# SCOPES=read_products,write_products,write_app_proxy
+SCOPES=read_products,write_products,write_app_proxy
+
+# Public app URL (usually managed by `shopify app dev`)
+# Example: https://your-tunnel.trycloudflare.com
+SHOPIFY_APP_URL=https://your-app-url.example
+
+
+# ---------------------------------------
+# Database (required for Prisma)
+# ---------------------------------------
+# PostgreSQL connection string
+# Example:
+# DATABASE_URL=postgresql://user:password@localhost:5432/rt_app?schema=public
+DATABASE_URL=
+
+
+# ---------------------------------------
+# Runtime / server (optional with defaults)
+# ---------------------------------------
+# Node environment
+NODE_ENV=development
+
+# Backend server port (default fallback in vite config: 3000)
+PORT=3000
+
+# Frontend dev port (default fallback in vite config: 8002)
+FRONTEND_PORT=8002
+
+# Used by Vite/Shopify CLI host rewrite logic
+# Usually injected by Shopify CLI during dev; leave blank unless needed.
+HOST=
+
+
+# ---------------------------------------
+# Shopify domain customization (optional)
+# ---------------------------------------
+# Optional custom shop domain support
+# Example: my-store.example.com
+SHOP_CUSTOM_DOMAIN=
+
+
+# ---------------------------------------
+# Dashboard auth/proxy tuning
+# ---------------------------------------
+# Optional dedicated session secret for dashboard iframe token signing.
+# If empty, code falls back to SHOPIFY_API_SECRET.
+DASHBOARD_SESSION_SECRET=
+
+# Dashboard session TTL in seconds (default: 300)
+DASHBOARD_SESSION_TTL_SECONDS=300
+
+# Max app proxy request age in seconds (default in code)
+PROXY_MAX_AGE_SECONDS=300
+
+# App proxy iframe target path (default: /dashboard)
+DASHBOARD_IFRAME_PATH=/dashboard
+
+
+# ---------------------------------------
+# Temporary MVP auth mapping (dev-only)
+# ---------------------------------------
+# Temporary membership resolver input (used by app/modules/auth/membership.server.ts)
+# JSON object keyed by Shopify customer id:
+# {
+#   "1234567890": {
+#     "companyId": "cmp_001",
+#     "role": "administrator",
+#     "status": "active"
+#   }
+# }
+AUTH_MEMBERSHIP_MAP={}
+
+
+# ---------------------------------------
+# Prisma / platform compatibility (optional)
+# ---------------------------------------
+# Optional workaround for Prisma engine/runtime compatibility on some Windows ARM setups.
+# Uncomment only if needed:
+# PRISMA_CLIENT_ENGINE_TYPE=binary
+
