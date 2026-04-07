@@ -56,6 +56,46 @@ export class CompanyProfileRepository {
     };
   }
 
+  async findByOrgNumber(orgNumber: string): Promise<CompanyProfileRecord | null> {
+    const profile = await this.prisma.companyProfile.findUnique({
+      where: { orgNumber },
+    });
+
+    if (!profile) {
+      return null;
+    }
+
+    return {
+      companyId: profile.companyId,
+      companyName: profile.companyName,
+      orgNumber: profile.orgNumber,
+      companyAddress: CompanyAddressSchema.parse(profile.companyAddress),
+    };
+  }
+
+  async create(input: {
+    companyId: string;
+    companyName: string;
+    orgNumber: string;
+    companyAddress: CompanyAddress;
+  }): Promise<CompanyProfileRecord> {
+    const created = await this.prisma.companyProfile.create({
+      data: {
+        companyId: input.companyId,
+        companyName: input.companyName,
+        orgNumber: input.orgNumber,
+        companyAddress: input.companyAddress,
+      },
+    });
+
+    return {
+      companyId: created.companyId,
+      companyName: created.companyName,
+      orgNumber: created.orgNumber,
+      companyAddress: CompanyAddressSchema.parse(created.companyAddress),
+    };
+  }
+
   static toProfileDto(record: CompanyProfileRecord): CompanyProfile {
     return {
       company_name: record.companyName,

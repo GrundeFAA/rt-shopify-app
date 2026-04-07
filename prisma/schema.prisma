@@ -36,8 +36,36 @@ model Session {
 model CompanyProfile {
   companyId      String   @id
   companyName    String
-  orgNumber      String
+  orgNumber      String   @unique
   companyAddress Json
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  memberships    CompanyMembership[]
+}
+
+model CompanyMembership {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  companyId  String
+  role       String
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company    CompanyProfile @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model OnboardingEventLog {
+  id         String   @id @default(cuid())
+  webhookId  String   @unique
+  topic      String
+  shop       String
+  customerId String?
+  status     String
+  details    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

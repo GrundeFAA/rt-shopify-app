@@ -11,8 +11,8 @@
 |---|---|---|---|---|---|
 | G2-WP-1 | App proxy cart-context API endpoint (signed proxy auth -> membership -> company profile -> cart attribute payload) | Backend Platform Agent | `done` | - | Implemented `GET /api/b2b-proxy/cart-context` with signed proxy verification, membership+profile resolution service, and no-store cart-attribute payload contract |
 | G2-WP-2 | Theme App Extension cart attribute writer | Frontend Embedded Agent | `done` | G2-WP-1 | Theme app extension scaffolded with storefront JS asset: `/apps/rt/cart-context` -> `/cart/update.js` attribute writer path available |
-| G2-WP-3 | Verification and reliability evidence for cart-context flow | Quality and DevEx Agent | `blocked` | G2-WP-1, G2-WP-2 | Backend/extension behavior verified; blocked on true storefront app-proxy runtime + checkout/order propagation evidence prerequisites |
-| G2-WP-4 | Webhook-driven company onboarding + DB-backed membership resolution | Backend Platform Agent | `todo` | G2-WP-1 | Implement `customers/create` onboarding using customer note contract and replace `AUTH_MEMBERSHIP_MAP` as primary membership source for proxy/session flows |
+| G2-WP-3 | Verification and reliability evidence for cart-context flow | Quality and DevEx Agent | `blocked` | G2-WP-1, G2-WP-2 | G2-WP-3D rerun completed; baseline gates pass but required live onboarding outcomes and authenticated storefront checkout propagation evidence are still missing |
+| G2-WP-4 | Webhook-driven company onboarding + DB-backed membership resolution | Backend Platform Agent | `done` | G2-WP-1 | Implemented customers/create onboarding with DB-first membership resolution; rework completed for webhook subscription wiring and retry-safe idempotency semantics |
 
 Status values:
 - `todo`
@@ -25,7 +25,7 @@ Status values:
 Each role updates only its own section.
 
 ### Architect/Tech Lead
-- Current package: `review of G2-WP-3 blocked verification report`
+- Current package: `review of G2-WP-3C live closure pass`
 - Progress:
   - validated scoped feature against architecture and reliability standards
   - defined Goal 2 work packages and ownership boundaries
@@ -33,43 +33,50 @@ Each role updates only its own section.
   - reviewed and accepted `G2-WP-1` implementation with route-service-repository layering and typed contract alignment
   - reviewed and accepted `G2-WP-2` theme extension cart attribute writer behavior and silent-failure UX contract
   - reviewed `G2-WP-3` and accepted blocked status pending interactive storefront E2E evidence
+  - reviewed `G2-WP-4` and marked for rework due webhook wiring/idempotency reliability gaps
+  - reviewed `G2-WP-4R` and accepted package after reliability/wiring fixes
+  - reviewed `G2-WP-3C` and accepted blocked status (partial live evidence captured; closure prerequisites still missing)
 - Decisions made:
   - this feature is tracked under Goal 2, not Goal 1
   - cycle 1 runs backend first, then frontend, then quality verification
 - Blockers:
   - interactive storefront/customer session required to complete live `/apps/rt/cart-context` chain and order note-attribute propagation validation
 - Next package:
-  - launch `G2-WP-4` backend onboarding/membership package to remove env-map dependency
+  - execute guided live onboarding data setup + authenticated storefront checkout pass, then rerun final G2-WP-3 closure evidence
 
 ### Backend Platform Agent
-- Current package: `G2-WP-1 - App proxy cart-context API endpoint`
+- Current package: `G2-WP-4R - Reliability/wiring rework for customers/create onboarding`
 - Progress:
-  - Implemented `GET /api/b2b-proxy/cart-context` route (`app/routes/api.b2b-proxy.cart-context.tsx`) using existing `verifyAppProxyRequest` auth validation.
-  - Kept route thin by delegating membership + company-profile resolution to `GetProxyCartContextService`.
-  - Added typed/zod cart-context response contract with flat cart attributes:
-    - `company_name`
-    - `company_org_number`
-    - `company_address_line1`
-    - `company_address_line2`
-    - `company_postal_code`
-    - `company_city`
-    - `company_country`
-  - Added contract marshaling through `ProxyCartContextOutputSchema`.
-  - Added success response cache policy `Cache-Control: no-store`.
-  - Error path uses typed `AppError` + `toApiErrorResponse` contract unchanged.
+  - Wired Shopify webhook subscription for `customers/create` in `shopify.app.toml` to `/webhooks/customers/create`.
+  - Reworked idempotency begin handling in `OnboardingEventLogRepository.begin()`:
+    - duplicate is returned only for unique conflict (`P2002`) with existing `completed` record
+    - non-unique DB failures are surfaced as retryable `INFRA_UNAVAILABLE` (no duplicate masking)
+  - Added safe processing status semantics (`processing` / `completed` / `failed`) for retry-safe recovery:
+    - failed runs are re-entered as `processing` on retry
+    - successful runs are written as `completed` with explicit `outcome` in details
+  - Added `fail()` path updates from onboarding service so failures after begin are tracked and retriable.
+  - Preserved onboarding business rules and existing membership-resolution behavior from prior package.
 - Files changed:
-  - `app/contracts/company.schema.ts`
-  - `app/modules/company/schemas.ts`
-  - `app/modules/company/services/get-proxy-cart-context.service.ts`
-  - `app/routes/api.b2b-proxy.cart-context.tsx`
+  - `shopify.app.toml`
+  - `app/modules/webhooks/services/process-customers-create-onboarding.service.ts`
+  - `app/modules/webhooks/repositories/onboarding-event-log.repository.server.ts`
   - `docs/specs/goal-2-progress.md`
 - Verification:
   - `npm run lint` -> pass
   - `npm run typecheck` -> pass
+  - Executable reliability scenario evidence (service/repository harness run):
+    - duplicate same webhook id -> no duplicate mutation (single membership/event record)
+    - transient failure after begin -> retry completes successfully (record transitions to `completed`)
+    - non-duplicate DB error in begin path -> surfaces `INFRA_UNAVAILABLE` (not mislabeled duplicate)
 - Blockers:
   - none
+- Migration/compatibility notes (env-map fallback decision):
+  - DB-backed memberships are now primary (`CompanyMembership`).
+  - `AUTH_MEMBERSHIP_MAP` is retained only as temporary fallback for non-migrated customers to avoid breaking in-flight proxy/session flows during rollout.
+  - Follow-up after webhook backfill: remove env fallback to make DB membership mandatory.
 - Handoff:
-  - Frontend Embedded Agent can now consume `GET /api/b2b-proxy/cart-context` from theme extension flow (`G2-WP-2`).
+  - Architect/Tech Lead should review `G2-WP-4` reliability rework and decide acceptance from `review` to `done`.
+  - Quality and DevEx Agent should validate live `customers/create` webhook retries against dev store with actual duplicate and transient-failure replay evidence.
 
 ### Frontend Embedded Agent
 - Current package: `G2-WP-2 - Theme App Extension cart attribute writer`
@@ -97,54 +104,42 @@ Each role updates only its own section.
   - Quality and DevEx Agent for `G2-WP-3` runtime verification of storefront attribute writes and checkout/order propagation.
 
 ### Quality and DevEx Agent
-- Current package: `G2-WP-3 - Verification and reliability evidence for cart-context flow`
+- Current package: `G2-WP-3D - Final live closure after onboarding data setup`
+- Status: `blocked`
 - Progress:
-  - Ran baseline quality gates (`lint`, `typecheck`) successfully.
-  - Executed runtime verification of cart-context API behavior via local running app route with real proxy-signature validation logic:
-    - invalid/unauthenticated proxy context -> non-OK typed auth response
-    - no membership -> non-OK typed auth response
-    - active member with company profile -> expected cart-context payload returned with all required keys
-    - missing company profile -> non-OK typed not-found response
-  - Executed repeatable runtime harness for extension JS flow and confirmed:
-    - non-OK proxy response exits silently
-    - network failure exits silently
-    - parsing failure exits silently
-    - successful payload triggers `/cart/update.js` call with expected flat attribute payload
-    - repeated executions do not throw and continue sending valid cart updates
-  - Attempted true storefront app-proxy runtime verification (`/apps/rt/cart-context` via `shopify app dev`) but execution was blocked by non-interactive store-password prompt and no storefront-authenticated customer test session in this environment.
+  - Re-ran closure validation pass with updated backend/data state checks.
+  - Re-ran baseline quality gates.
+  - Queried live DB evidence for onboarding outcomes and membership creation.
+  - Re-validated that closure prerequisites remain unmet for required onboarding and checkout propagation scenarios.
 - Files changed:
   - `docs/specs/goal-2-progress.md`
-- Verification evidence:
-  - `npm run lint` -> pass
-  - `npm run typecheck` -> pass
-  - Proxy API scenario evidence (local runtime route checks):
-    - missing signature -> `401 AUTH_INVALID_PROXY_SIGNATURE`
-    - valid signature + unmapped customer -> `403 AUTH_NO_MEMBERSHIP`
-    - valid signature + mapped active customer (`cmp_001`) -> `200` with payload keys:
-      - `company_name`
-      - `company_org_number`
-      - `company_address_line1`
-      - `company_address_line2`
-      - `company_postal_code`
-      - `company_city`
-      - `company_country`
-    - valid signature + mapped customer with missing company profile -> `404 RESOURCE_NOT_FOUND`
-  - Extension runtime harness evidence (`extensions/cart-context-writer/assets/cart-context.js`):
-    - non-OK proxy: one fetch call, zero `/cart/update.js` calls
-    - network failure: one fetch call, zero `/cart/update.js` calls
-    - JSON parse failure: one fetch call, zero `/cart/update.js` calls
-    - active payload: two fetch calls, one `/cart/update.js` with expected attributes body
-    - repeated loads (2 runs): two `/cart/update.js` calls, no thrown errors
+- Live verification evidence summary:
+  - Baseline gates:
+    - `npm run lint` -> pass
+    - `npm run typecheck` -> pass
+  - DB outcome verification (live query evidence):
+    - `OnboardingEventLog`: 1 record, outcome list = `["ignored_invalid_note"]`
+    - `CompanyMembership`: 0 records
+    - required outcomes not present:
+      - `processed_new_company`
+      - `processed_existing_company_member`
+  - Duplicate replay verification:
+    - not verifiable from live data because there is no successful onboarding mutation baseline to replay against
+  - Authenticated storefront chain verification:
+    - no captured live evidence in this pass for:
+      - mapped/linked member `GET /apps/rt/cart-context` success payload
+      - extension-driven `/cart/update.js` write from authenticated storefront customer session
+      - checkout/order note-attribute propagation containing company fields
 - Blockers:
-  - Required true storefront E2E path (`/apps/rt/cart-context` -> extension JS on storefront page -> Shopify cart mutation in browser context) is not executable in this non-interactive run because `shopify app dev` requires interactive store-password entry.
-  - Required checkout/order note attribute propagation verification is not executable without controlled storefront customer session and order-placement test flow.
-  - Missing prerequisite for release evidence completion:
-    - interactive storefront session (password + customer login context) with app embed enabled
-    - ability to inspect resulting cart attributes at checkout/order in a live store flow
+  - Missing prerequisite: two real `customers/create` onboarding events with valid note payloads for the same org that produce:
+    - first user -> `processed_new_company` + `administrator/active`
+    - second user -> `processed_existing_company_member` + `user/inactive`
+  - Missing prerequisite: duplicate replay evidence for a successful onboarding webhook id showing no duplicate membership mutation.
+  - Missing prerequisite: authenticated storefront customer session tied to persisted membership, with captured cart update and checkout/order attribute propagation evidence.
 - Handoff:
-  - Architect/Tech Lead: keep `G2-WP-3` in blocked status pending storefront runtime evidence session.
-  - Quality and DevEx Agent (next pass): run live storefront verification checklist once interactive store/customer session is available; then finalize release evidence.
-  - Release recommendation: `NO-GO` until storefront E2E and checkout/order propagation evidence is captured.
+  - Backend Platform Agent + Architect/Tech Lead: complete live onboarding data setup (two valid customers same org + duplicate replay) and confirm persisted outcomes in DB.
+  - Quality and DevEx Agent (next pass): execute final authenticated storefront-to-checkout capture and close `G2-WP-3`.
+  - Final release recommendation: `NO-GO` until prerequisites above are satisfied.
 
 ## Architect validation log
 | Date | Work package | Validation result | Notes |
@@ -153,4 +148,7 @@ Each role updates only its own section.
 | 2026-04-07 | G2-WP-1 | accepted | signed app-proxy auth reuse, thin route delegation, zod cart-context output contract, and no-store response header verified |
 | 2026-04-07 | G2-WP-2 | accepted | theme extension app-embed JS writes `/apps/rt/cart-context` payload to `/cart/update.js` and exits silently on non-OK/network failures |
 | 2026-04-07 | G2-WP-3 | blocked (validated) | automated/local evidence is strong; live storefront + checkout/order propagation proof is still required for GO decision |
+| 2026-04-07 | G2-WP-4 | review (rework required) | core onboarding flow exists, but customers/create webhook subscription is not wired and idempotency repository currently masks non-duplicate DB failures as duplicates |
+| 2026-04-07 | G2-WP-4R | accepted | customers/create webhook subscription added; idempotency begin now distinguishes unique-duplicate vs infra errors; processing/failed/completed lifecycle supports retriable recovery |
+| 2026-04-07 | G2-WP-3C | blocked (validated) | live gates executed and negative path proven, but required positive live onboarding outcomes + authenticated cart-context checkout/order propagation evidence still missing |
 
