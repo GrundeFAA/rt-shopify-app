@@ -79,7 +79,25 @@ Validation failures are defined by `docs/07-validation-standard-zod.md` and must
 - Throw typed domain errors only
 - Convert unknown infrastructure exceptions to typed internal/dependency errors
 - Keep business-state transitions explicit and recoverable
-- For hard-sync workflows, wrap DB writes in a transaction and abort/rollback on Shopify mirror failure
+- For hard-sync workflows, use the shared orchestrator flow: snapshot -> Shopify write -> DB write -> Shopify compensation on DB failure
+
+### Hard-Sync Failure Semantics (Mandatory)
+For operations using the hard-sync method:
+
+- Stage `SYNC_STAGE_SHOPIFY_WRITE_FAILED`
+  - Meaning: required Shopify write did not complete
+  - Client outcome: operation fails, app DB write is not committed
+  - Error code: propagate typed upstream dependency code (for example `SHOPIFY_TEMPORARY_FAILURE`, `INFRA_TIMEOUT`)
+
+- Stage `SYNC_STAGE_DB_WRITE_FAILED`
+  - Meaning: Shopify write succeeded but app DB write failed
+  - Client outcome: operation fails even if compensation succeeds
+  - Error code when compensation succeeds: `SYNC_WRITE_ABORTED`
+
+- Stage `SYNC_STAGE_COMPENSATION_FAILED`
+  - Meaning: app DB write failed and rollback/compensation to Shopify also failed
+  - Client outcome: operation fails with unresolved divergence risk
+  - Error code: `SYNC_RECONCILIATION_MISMATCH`
 
 ### Repositories
 - Map DB-specific errors (unique constraints, not found, transaction conflicts) to domain-level error codes

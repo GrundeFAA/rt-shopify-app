@@ -15,3 +15,14 @@ export const CompanyProfileSchema = z.object({
   company_address: CompanyAddressSchema,
 });
 export type CompanyProfile = z.infer<typeof CompanyProfileSchema>;
+
+export const CartContextAttributesSchema = z.object({
+  company_name: z.string().min(1),
+  company_org_number: z.string().min(1),
+  company_address_line1: z.string().min(1),
+  company_address_line2: z.string(),
+  company_postal_code: z.string().min(1),
+  company_city: z.string().min(1),
+  company_country: z.string().min(2).max(2),
+});
+export type CartContextAttributes = z.infer<typeof CartContextAttributesSchema>;

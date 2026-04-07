@@ -52,8 +52,12 @@ Two address types are required:
 ## Onboarding and Access
 - Customer onboarding is webhook-driven from Shopify `customers/create` events.
 - Temporary company payload is read from customer note with expected keys:
-  - `company`
-  - `org_number`
+  - `company_name`
+  - `company_org_number`
+  - `company_address_line1`
+  - `company_address_line2` (optional)
+  - `company_postal_code`
+  - `company_city`
 - Note payload is single-use onboarding data and should be removed after successful onboarding processing.
 - First user in a new company is `administrator` and `active`.
 - Users linked to existing companies are `user` and `inactive` until approved by an administrator.

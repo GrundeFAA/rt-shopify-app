@@ -8,13 +8,21 @@ Because the storefront form cannot write structured metadata directly, the custo
 
 Expected note format:
 
-`company: <Company Name>`
-`org_number: <Organization Number>`
+`company_name: <Company Name>`
+`company_org_number: <Organization Number>`
+`company_address_line1: <Address line 1>`
+`company_address_line2: <Address line 2>` (optional)
+`company_postal_code: <Postal code>`
+`company_city: <City>`
 
 Example:
 
-`company: Reolteknikk AS`
-`org_number: 123456789`
+`company_name: Reolteknikk AS`
+`company_org_number: 123456789`
+`company_address_line1: Storgata 2`
+`company_address_line2: Suite 2`
+`company_postal_code: 0155`
+`company_city: Oslo`
 
 ## Important Constraint
 - Theme form validation enforces note formatting on the client.
@@ -70,7 +78,7 @@ App DB membership status is source of truth; Shopify tags mirror that state for 
 - Note cleanup failure after successful onboarding: enqueue retry task for note cleanup
 - Tag update failure: keep membership status as source of truth and enqueue retry
 - Duplicate webhooks: dedupe via webhook/event idempotency handling
-- Existing linked customer with conflicting company payload (`org_number` mismatch): reject onboarding mutation and log conflict event
+- Existing linked customer with conflicting company payload (`company_org_number` mismatch): reject onboarding mutation and log conflict event
 
 ## `customers/update` Scope (MVP)
 - Reserved for later synchronization concerns (for example profile or address-related reactions)

@@ -12,6 +12,25 @@ For company profile writes in MVP (for example company address updates), sync mu
 - No partial success is accepted for this flow.
 - App DB remains source of truth, but writes are committed only after required Shopify mirror step succeeds.
 
+## Hard-Sync Orchestration Standard (Implemented Pattern)
+For cross-boundary write flows that must remain strongly aligned (Shopify + app DB), use the hard-sync orchestration pattern:
+
+- Shared orchestrator in `app/modules/sync/core/hard-sync-orchestrator.ts`
+- One operation adapter per aggregate/domain, not per field-level action
+- Current aggregate adapter: `app/modules/company/services/company-profile-hard-sync.operation.ts`
+
+Execution contract:
+1. Read current app DB snapshot.
+2. Write required Shopify mirror state first.
+3. Write app DB second.
+4. If app DB write fails after Shopify success, compensate Shopify back to snapshot.
+5. Return success only when final state is aligned.
+
+Error contract for hard-sync:
+- Shopify write failure: fail with stage `SYNC_STAGE_SHOPIFY_WRITE_FAILED` and do not persist app DB write.
+- DB write failure with successful compensation: fail with `SYNC_WRITE_ABORTED` and stage `SYNC_STAGE_DB_WRITE_FAILED`.
+- DB write failure with failed compensation: fail with `SYNC_RECONCILIATION_MISMATCH` and stage `SYNC_STAGE_COMPENSATION_FAILED`.
+
 ## Layer Responsibilities
 
 ### API Route Handlers
@@ -73,7 +92,7 @@ Not allowed:
 2. Route handler calls `UpdateUserSomethingService`
 3. Service loads current internal user state via repository
 4. Service applies ownership rule:
-   - App-owned field with hard-sync requirement: perform write in transaction and commit only if required Shopify mirror step succeeds; otherwise rollback
+   - App-owned field with hard-sync requirement: execute the hard-sync orchestrator (Shopify write -> app DB write -> Shopify compensation on DB failure)
    - App-owned field without hard-sync requirement: write app DB, enqueue outbox push to Shopify if mirrored
    - Shopify-owned field: call Shopify gateway first, then mirror to app DB
 5. Service returns updated response model
@@ -95,7 +114,7 @@ Current MVP ownership decisions:
 - Inbox/idempotency tracking for inbound webhooks
 - Reconciliation jobs for drift repair
 - Sync state on mapped records (`in_sync`, `pending_push`, `pending_pull`, `failed`, `conflict`)
-- Webhook onboarding parser for temporary customer note contract (`company`, `org_number`)
+- Webhook onboarding parser for temporary customer note contract (`company_name`, `company_org_number`, `company_address_line1`, `company_address_line2`, `company_postal_code`, `company_city`)
 - One-customer-to-one-company invariant enforcement in onboarding workflow
 
 ## Suggested Module Layout
