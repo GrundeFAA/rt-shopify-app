@@ -161,6 +161,9 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
     const iframeSessionToken = new URL(request.url).searchParams.get("st");
     const headers = createBootstrapHeaders(request, iframeSessionToken);
     const sessionUrl = new URL("/api/auth/session", request.url);
+    if (iframeSessionToken) {
+      sessionUrl.searchParams.set("st", iframeSessionToken);
+    }
     const response = await fetch(sessionUrl, {
       method: "GET",
       headers,
@@ -168,7 +171,11 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
     if (response.ok) {
       const session = await parseJsonResponse<SessionData>(response);
-      const profileResponse = await fetch(new URL("/api/company/profile", request.url), {
+      const profileUrl = new URL("/api/company/profile", request.url);
+      if (iframeSessionToken) {
+        profileUrl.searchParams.set("st", iframeSessionToken);
+      }
+      const profileResponse = await fetch(profileUrl, {
         method: "GET",
         headers,
       });

@@ -121,10 +121,15 @@ export function getDashboardSessionTokenFromRequest(request: Request): string | 
   }
 
   const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader) {
-    return null;
+  if (cookieHeader) {
+    const cookies = parseCookie(cookieHeader);
+    const cookieToken = cookies[DASHBOARD_SESSION_COOKIE_NAME] ?? null;
+    if (cookieToken) {
+      return cookieToken;
+    }
   }
 
-  const cookies = parseCookie(cookieHeader);
-  return cookies[DASHBOARD_SESSION_COOKIE_NAME] ?? null;
+  // Fallback for bootstrap calls that provide iframe session token in query.
+  const queryToken = new URL(request.url).searchParams.get("st")?.trim();
+  return queryToken || null;
 }
