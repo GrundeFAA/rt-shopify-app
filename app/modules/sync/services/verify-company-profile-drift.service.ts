@@ -11,7 +11,7 @@ export class VerifyCompanyProfileDriftService {
     private readonly mirrorGateway: CompanyProfileMirrorGateway,
   ) {}
 
-  async execute(companyId: string): Promise<CompanyProfileDriftReport> {
+  async execute(companyId: string, shop?: string): Promise<CompanyProfileDriftReport> {
     try {
       const profile = await this.companyProfileRepository.findByCompanyId(companyId);
       if (!profile) {
@@ -21,7 +21,9 @@ export class VerifyCompanyProfileDriftService {
         });
       }
 
-      const session = await this.sessionRepository.getLatestOfflineSession();
+      const session = shop
+        ? await this.sessionRepository.getOfflineSessionByShop(shop)
+        : await this.sessionRepository.getLatestOfflineSession();
       if (!session) {
         throw new AppError(
           "INFRA_UNAVAILABLE",
@@ -31,6 +33,7 @@ export class VerifyCompanyProfileDriftService {
           {
             stage: "drift_offline_session_lookup",
             companyId,
+            shop,
           },
         );
       }

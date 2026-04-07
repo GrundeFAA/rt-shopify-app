@@ -18,12 +18,15 @@ export class MirrorCompanyProfileService {
 
   async executeStrict(input: {
     companyId: string;
+    shop?: string;
     companyProfile: CompanyProfile;
   }): Promise<{ shop: string }> {
     const companyId = input.companyId;
     const companyProfile = input.companyProfile;
     const payload = CompanyProfileMirrorPayloadSchema.parse(companyProfile);
-    const session = await this.sessionRepository.getLatestOfflineSession();
+    const session = input.shop
+      ? await this.sessionRepository.getOfflineSessionByShop(input.shop)
+      : await this.sessionRepository.getLatestOfflineSession();
 
     if (!session) {
       throw new AppError(
@@ -34,6 +37,7 @@ export class MirrorCompanyProfileService {
         {
           stage: "mirror_offline_session_lookup",
           companyId,
+          shop: input.shop,
         },
       );
     }
@@ -49,6 +53,7 @@ export class MirrorCompanyProfileService {
 
   async execute(input: {
     companyId: string;
+    shop?: string;
     companyProfile: CompanyProfile;
   }): Promise<void> {
     try {

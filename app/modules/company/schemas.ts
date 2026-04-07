@@ -12,6 +12,7 @@ export type GetCompanyProfileInput = z.infer<typeof GetCompanyProfileInputSchema
 
 export const UpdateCompanyAddressInputSchema = z.object({
   companyId: z.string().min(1),
+  shop: z.string().min(1),
   role: z.enum(["administrator", "user"]),
   companyAddress: CompanyAddressSchema,
 });

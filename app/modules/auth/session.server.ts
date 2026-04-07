@@ -15,6 +15,7 @@ const DEFAULT_DASHBOARD_SESSION_TTL_SECONDS = 300;
 export type CreateDashboardSessionInput = {
   customerId: string;
   companyId: string;
+  shop: string;
   role: MembershipRole;
   status: MembershipStatus;
 };
@@ -43,6 +44,7 @@ export function issueDashboardSessionToken(input: CreateDashboardSessionInput): 
   const claims: DashboardSessionClaims = {
     customerId: input.customerId,
     companyId: input.companyId,
+    shop: input.shop,
     role: input.role,
     status: input.status,
     iat: nowInSeconds,

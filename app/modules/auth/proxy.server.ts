@@ -4,6 +4,7 @@ import { AppError } from "./errors";
 
 type VerifiedProxyContext = {
   customerId: string;
+  shop: string;
   timestamp: number;
   rawParams: URLSearchParams;
 };
@@ -38,6 +39,7 @@ export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
 
   const parseResult = ProxyParamsSchema.safeParse({
     signature,
+    shop: url.searchParams.get("shop"),
     timestamp: url.searchParams.get("timestamp"),
     logged_in_customer_id: url.searchParams.get("logged_in_customer_id"),
   });
@@ -85,6 +87,7 @@ export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
 
   return {
     customerId: parseResult.data.logged_in_customer_id,
+    shop: parseResult.data.shop,
     timestamp: parseResult.data.timestamp,
     rawParams: url.searchParams,
   };

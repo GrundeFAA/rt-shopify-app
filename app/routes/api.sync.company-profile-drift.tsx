@@ -29,7 +29,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       gateway,
     );
 
-    const report = await service.execute(claims.companyId);
+    const report = await service.execute(claims.companyId, claims.shop);
     return Response.json(report, { status: 200 });
   } catch (error) {
     return toApiErrorResponse(error, request);

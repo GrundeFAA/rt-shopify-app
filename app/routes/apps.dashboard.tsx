@@ -120,6 +120,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const sessionToken = issueDashboardSessionToken({
       customerId: membership.customerId,
       companyId: membership.companyId,
+      shop: proxyContext.shop,
       role: membership.role,
       status: membership.status,
     });

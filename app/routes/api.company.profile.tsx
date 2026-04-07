@@ -75,6 +75,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const service = new UpdateCompanyAddressService(repository, mirrorService);
     const updatedProfile = await service.execute({
       companyId: claims.companyId,
+      shop: claims.shop,
       role: claims.role,
       companyAddress: parsedAddress.data,
     });

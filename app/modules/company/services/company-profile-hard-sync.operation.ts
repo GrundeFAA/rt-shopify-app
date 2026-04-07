@@ -12,6 +12,7 @@ export type CompanyProfileMutation =
 
 type CompanyProfileHardSyncInput = {
   companyId: string;
+  shop: string;
   mutation: CompanyProfileMutation;
 };
 
@@ -90,6 +91,7 @@ export async function runCompanyProfileHardSyncOperation(args: {
 
       const result = await mirrorService.executeStrict({
         companyId: operationInput.companyId,
+        shop: operationInput.shop,
         companyProfile: snapshot.nextProfile,
       });
       return { shop: result.shop };
@@ -129,6 +131,7 @@ export async function runCompanyProfileHardSyncOperation(args: {
 
       await mirrorService.executeStrict({
         companyId: operationInput.companyId,
+        shop: operationInput.shop,
         companyProfile: snapshot.previousProfile,
       });
     },
@@ -143,6 +146,7 @@ export async function runCompanyProfileHardSyncOperation(args: {
             ...(error.details ?? {}),
             stage: "SYNC_STAGE_SHOPIFY_WRITE_FAILED",
             companyId: operationInput.companyId,
+            shop: operationInput.shop,
             mutationKind: operationInput.mutation.kind,
             upstreamCode: error.code,
             causeMessage: error.message,
@@ -161,6 +165,7 @@ export async function runCompanyProfileHardSyncOperation(args: {
         {
           stage: "SYNC_STAGE_COMPENSATION_FAILED",
           companyId: operationInput.companyId,
+          shop: operationInput.shop,
           mutationKind: operationInput.mutation.kind,
           dbCauseMessage: getErrorMessage(localError),
           compensationCauseMessage: getErrorMessage(compensationError),
@@ -178,6 +183,7 @@ export async function runCompanyProfileHardSyncOperation(args: {
         {
           stage: "SYNC_STAGE_DB_WRITE_FAILED",
           companyId: operationInput.companyId,
+          shop: operationInput.shop,
           mutationKind: operationInput.mutation.kind,
           causeMessage: getErrorMessage(localError),
           compensationApplied: true,

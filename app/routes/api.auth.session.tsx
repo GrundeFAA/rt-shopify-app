@@ -10,6 +10,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return Response.json({
       customerId: claims.customerId,
       companyId: claims.companyId,
+      shop: claims.shop,
       role: claims.role,
       status: claims.status,
       iat: claims.iat,

@@ -8,6 +8,29 @@ export type ShopifyOfflineSession = {
 export class ShopifyOfflineSessionRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async getOfflineSessionByShop(shop: string): Promise<ShopifyOfflineSession | null> {
+    const normalizedShop = shop.trim().toLowerCase();
+    if (!normalizedShop) {
+      return null;
+    }
+
+    const session = await this.prisma.session.findFirst({
+      where: {
+        isOnline: false,
+        shop: normalizedShop,
+      },
+    });
+
+    if (!session?.shop || !session.accessToken) {
+      return null;
+    }
+
+    return {
+      shop: session.shop,
+      accessToken: session.accessToken,
+    };
+  }
+
   async getLatestOfflineSession(): Promise<ShopifyOfflineSession | null> {
     const session = await this.prisma.session.findFirst({
       where: {

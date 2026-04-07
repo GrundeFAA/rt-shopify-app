@@ -28,6 +28,7 @@ export class UpdateCompanyAddressService {
     const result = await runCompanyProfileHardSyncOperation({
       input: {
         companyId: parsedInput.data.companyId,
+        shop: parsedInput.data.shop,
         mutation: {
           kind: "update_address",
           companyAddress: parsedInput.data.companyAddress,

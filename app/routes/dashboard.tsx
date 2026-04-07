@@ -14,6 +14,7 @@ import styles from "../modules/dashboard/dashboard-view.module.css";
 type SessionData = {
   customerId: string;
   companyId: string;
+  shop: string;
   role: string;
   status: string;
   iat: number;
