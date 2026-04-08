@@ -1,52 +1,39 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { LoaderFunctionArgs } from "react-router";
+import type { LinksFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
-import type {
-  ApiErrorContract,
-  DashboardErrorState,
-} from "../modules/dashboard/error-state";
 import {
-  toDashboardFrontendState,
-  toDiagnosticEntries,
-} from "../modules/dashboard/error-state";
-import styles from "../modules/dashboard/dashboard-view.module.css";
-
-type SessionData = {
-  customerId: string;
-  companyId: string;
-  shop: string;
-  role: string;
-  status: string;
-  iat: number;
-  exp: number;
-  jti: string;
-};
-
-type CompanyAddress = {
-  line1: string;
-  line2?: string;
-  postalCode: string;
-  city: string;
-  country: string;
-};
-
-type CompanyProfile = {
-  company_name: string;
-  org_number: string;
-  company_address: CompanyAddress;
-};
-
-type DriftMismatch = {
-  key: "company_name" | "org_number" | "company_address";
-  sourceValue: unknown;
-  mirroredValue: unknown;
-};
-
-type DriftReport = {
-  companyId: string;
-  inSync: boolean;
-  mismatches: DriftMismatch[];
-};
+  DashboardAlert,
+  DashboardCard,
+  DashboardTabs,
+  type DashboardTabItem,
+} from "../modules/dashboard/components";
+import {
+  createBootstrapHeaders,
+  fetchCompanyProfileDrift,
+  makeRequestId,
+  parseJsonResponse,
+  patchCompanyAddress,
+  readErrorContract,
+} from "../modules/dashboard/dashboard-api";
+import {
+  BOOTSTRAP_TOKEN_STORAGE_KEY,
+  DASHBOARD_SECTION_CONFIG,
+} from "../modules/dashboard/dashboard.constants";
+import dashboardTailwindHref from "../modules/dashboard/dashboard-tailwind.css?url";
+import type {
+  CompanyAddress,
+  CompanyProfile,
+  DashboardSectionKey,
+  DriftReport,
+  SessionData,
+} from "../modules/dashboard/dashboard.types";
+import { getDashboardErrorCopy, shouldRenderRuntimeErrorAsFullPage } from "../modules/dashboard/error-copy";
+import type { ApiErrorContract, DashboardErrorState } from "../modules/dashboard/error-state";
+import { toDashboardFrontendState } from "../modules/dashboard/error-state";
+import { CompanyInfoSection } from "../modules/dashboard/sections/company-info-section";
+import { CompanyOrdersSection } from "../modules/dashboard/sections/company-orders-section";
+import { SharedDeliveryAddressesSection } from "../modules/dashboard/sections/shared-delivery-addresses-section";
+import { UsersInvitesSection } from "../modules/dashboard/sections/users-invites-section";
 
 type LoaderData =
   | {
@@ -60,102 +47,13 @@ type LoaderData =
       error: ApiErrorContract;
     };
 
-const BOOTSTRAP_TOKEN_STORAGE_KEY = "rt_dashboard_bootstrap_token";
-
-function makeRequestId(): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return globalThis.crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function getStateTitle(state: DashboardErrorState): string {
-  if (state === "unauthorized") {
-    return "Authentication required";
-  }
-
-  if (state === "forbidden") {
-    return "Access restricted";
-  }
-
-  if (state === "sync_in_progress") {
-    return "Sync in progress";
-  }
-
-  return "Temporarily unavailable";
-}
-
-function getStateDescription(state: DashboardErrorState): string {
-  if (state === "unauthorized") {
-    return "Your dashboard session is missing or expired. Re-open the dashboard from the storefront entry point.";
-  }
-
-  if (state === "forbidden") {
-    return "Your account does not currently have access to dashboard content.";
-  }
-
-  if (state === "sync_in_progress") {
-    return "Your data is still being prepared. Refresh shortly to continue.";
-  }
-
-  return "A temporary dependency issue is preventing dashboard startup.";
-}
-
-async function readErrorContract(response: Response): Promise<ApiErrorContract> {
-  const requestIdFromHeader = response.headers.get("x-request-id") ?? makeRequestId();
-  const fallback: ApiErrorContract = {
-    code: "INTERNAL_ERROR",
-    message: "Unable to load dashboard session.",
-    requestId: requestIdFromHeader,
-    retryable: true,
-  };
-
-  try {
-    const raw = await response.json();
-    if (
-      typeof raw?.code === "string" &&
-      typeof raw?.message === "string" &&
-      typeof raw?.requestId === "string" &&
-      typeof raw?.retryable === "boolean"
-    ) {
-      return {
-        code: raw.code,
-        message: raw.message,
-        requestId: raw.requestId,
-        retryable: raw.retryable,
-        details:
-          raw.details && typeof raw.details === "object"
-            ? (raw.details as Record<string, unknown>)
-            : undefined,
-      };
-    }
-
-    return fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function createBootstrapHeaders(
-  request: Request,
-  iframeSessionToken: string | null,
-): Headers {
-  const headers = new Headers({
-    cookie: request.headers.get("cookie") ?? "",
-    "x-request-id": request.headers.get("x-request-id") ?? makeRequestId(),
-  });
-
-  if (iframeSessionToken) {
-    headers.set("authorization", `Bearer ${iframeSessionToken}`);
-  }
-
-  return headers;
-}
-
-async function parseJsonResponse<T>(response: Response): Promise<T> {
-  return (await response.json()) as T;
-}
+export const links: LinksFunction = () => [
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;500;600;700&display=swap",
+  },
+  { rel: "stylesheet", href: dashboardTailwindHref },
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderData> => {
   try {
@@ -206,7 +104,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
   } catch {
     const fallbackError: ApiErrorContract = {
       code: "INFRA_UNAVAILABLE",
-      message: "The dashboard could not be loaded right now.",
+      message: "Dashboardet kunne ikke lastes akkurat nå.",
       requestId: request.headers.get("x-request-id") ?? makeRequestId(),
       retryable: true,
     };
@@ -225,12 +123,14 @@ export default function DashboardRoute() {
     error: ApiErrorContract;
   } | null>(null);
   const [address, setAddress] = useState<CompanyAddress>(
-    data.state === "ready" ? data.profile.company_address : {
-      line1: "",
-      postalCode: "",
-      city: "",
-      country: "",
-    },
+    data.state === "ready"
+      ? data.profile.company_address
+      : {
+          line1: "",
+          postalCode: "",
+          city: "",
+          country: "",
+        },
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -239,6 +139,7 @@ export default function DashboardRoute() {
   const [authToken, setAuthToken] = useState<string | null>(
     data.state === "ready" ? data.bootstrapToken : null,
   );
+  const [activeSection, setActiveSection] = useState<DashboardSectionKey>("company_info");
 
   useEffect(() => {
     if (data.state !== "ready") {
@@ -269,44 +170,41 @@ export default function DashboardRoute() {
 
   const renderErrorState = (state: DashboardErrorState, error: ApiErrorContract) => {
     const shouldShowRetry = error.retryable;
-    const diagnostics = toDiagnosticEntries(error.details);
+    const copy = getDashboardErrorCopy(error, state);
 
     return (
-      <main className={styles.page}>
-        <section className={styles.panel} data-state={state}>
-          <h1 className={styles.title}>{getStateTitle(state)}</h1>
-          <p className={styles.message}>{getStateDescription(state)}</p>
-          <p className={styles.reason}>{error.message}</p>
-          <dl className={styles.metadata}>
-            <div>
-              <dt>Code</dt>
-              <dd>{error.code}</dd>
-            </div>
-            <div>
-              <dt>Request ID</dt>
-              <dd>{error.requestId}</dd>
-            </div>
-            <div>
-              <dt>Message</dt>
-              <dd>{error.message}</dd>
-            </div>
-          </dl>
-          {diagnostics.length > 0 ? (
-            <section className={styles.diagnosticsSection} aria-label="Error diagnostics">
-              <h2 className={styles.diagnosticsTitle}>Diagnostics</h2>
-              <dl className={styles.diagnosticsList}>
-                {diagnostics.map((entry) => (
-                  <div key={entry.key}>
-                    <dt>{entry.key}</dt>
-                    <dd>{entry.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
+      <main className="min-h-screen bg-[var(--bk-color-bg-subtle)] px-4 py-8 sm:px-6">
+        <section
+          data-state={state}
+          className="mx-auto w-full max-w-3xl rounded-[6px] border border-[var(--bk-color-border-default)] bg-[var(--bk-color-bg-default)] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.10)] sm:p-8"
+        >
+          <p className="mb-3 inline-flex items-center rounded-[40px] border border-[var(--bk-color-border-default)] bg-[var(--bk-color-bg-muted)] px-3 py-1 text-sm font-medium text-[var(--bk-color-text-muted)]">
+            Dashboardstatus
+          </p>
+          <h1 className="mb-2 text-[28px] font-semibold leading-tight text-[var(--bk-color-text-strong)]">
+            {copy.title}
+          </h1>
+          <p className="mb-2 text-base text-[var(--bk-color-text-primary)]">{copy.description}</p>
+          <p className="mb-4 text-sm text-[var(--bk-color-text-muted)]">{copy.action}</p>
+          {copy.showRequestId ? (
+            <dl className="mb-4 rounded-[4px] border border-[var(--bk-color-border-default)] bg-[var(--bk-color-bg-subtle)] px-3 py-2">
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-[var(--bk-color-text-subtle)]">
+                  Referanse for support
+                </dt>
+                <dd className="mt-1 font-mono text-sm text-[var(--bk-color-text-primary)]">
+                  {error.requestId}
+                </dd>
+              </div>
+            </dl>
           ) : null}
           {shouldShowRetry ? (
-            <button className={styles.retryButton} type="button" onClick={() => window.location.reload()}>
-              Retry
+            <button
+              className="inline-flex h-11 items-center justify-center rounded-[4px] bg-[var(--bk-color-accent-primary)] px-7 text-base font-semibold text-white transition-colors duration-200 hover:bg-[var(--bk-color-accent-primary-hover)]"
+              type="button"
+              onClick={() => window.location.reload()}
+            >
+              Prøv igjen
             </button>
           ) : null}
         </section>
@@ -318,27 +216,12 @@ export default function DashboardRoute() {
     return renderErrorState(data.state, data.error);
   }
 
-  if (runtimeError) {
+  if (runtimeError && shouldRenderRuntimeErrorAsFullPage(runtimeError.error)) {
     return renderErrorState(runtimeError.state, runtimeError.error);
   }
 
-  const createApiHeaders = () => {
-    const headers = new Headers({
-      "content-type": "application/json",
-      "x-request-id": makeRequestId(),
-    });
-
-    if (authToken) {
-      headers.set("authorization", `Bearer ${authToken}`);
-    }
-    return headers;
-  };
-
   const loadSyncReport = async (): Promise<void> => {
-    const driftResponse = await fetch("/api/sync/company-profile-drift", {
-      method: "GET",
-      headers: createApiHeaders(),
-    });
+    const driftResponse = await fetchCompanyProfileDrift(authToken);
 
     if (!driftResponse.ok) {
       const error = await readErrorContract(driftResponse);
@@ -351,8 +234,8 @@ export default function DashboardRoute() {
     setSyncReport(report);
     setSyncMessage(
       report.inSync
-        ? "Profile mirror is in sync."
-        : `Profile mirror has ${report.mismatches.length} mismatch(es).`,
+        ? "Profilspeilingen er synkronisert."
+        : `Profilspeilingen har ${report.mismatches.length} avvik.`,
     );
   };
 
@@ -363,13 +246,7 @@ export default function DashboardRoute() {
     setSyncMessage(null);
     setRuntimeError(null);
 
-    const response = await fetch("/api/company/profile", {
-      method: "PATCH",
-      headers: createApiHeaders(),
-      body: JSON.stringify({
-        company_address: address,
-      }),
-    });
+    const response = await patchCompanyAddress(address, authToken);
 
     if (!response.ok) {
       const error = await readErrorContract(response);
@@ -381,93 +258,82 @@ export default function DashboardRoute() {
     const updatedProfile = await parseJsonResponse<CompanyProfile>(response);
     setAddress(updatedProfile.company_address);
     setSaveState("success");
-    setSaveMessage("Company address saved.");
+    setSaveMessage("Firmaadresse lagret.");
     await loadSyncReport();
   };
 
+  const tabs: DashboardTabItem<DashboardSectionKey>[] = DASHBOARD_SECTION_CONFIG.map((section) => ({
+    key: section.key,
+    name: section.name,
+    href: section.href,
+    icon: section.icon,
+    current: section.key === activeSection,
+  }));
+
+  const renderActiveSection = () => {
+    if (activeSection === "company_info") {
+      return (
+        <CompanyInfoSection
+          address={address}
+          setAddress={setAddress}
+          saveState={saveState}
+          saveMessage={saveMessage}
+          syncMessage={syncMessage}
+          syncReport={syncReport}
+          onAddressSubmit={onAddressSubmit}
+        />
+      );
+    }
+
+    if (activeSection === "company_orders") {
+      return <CompanyOrdersSection />;
+    }
+
+    if (activeSection === "users_invites") {
+      return <UsersInvitesSection isAdministrator={data.session.role === "administrator"} />;
+    }
+
+    return <SharedDeliveryAddressesSection />;
+  };
+
   return (
-    <main className={styles.page}>
-      <section className={styles.panel}>
-        <h1 className={styles.title}>RT Dashboard</h1>
-        <p className={styles.message}>Company profile address update</p>
-        <p className={styles.meta}>Company: {data.profile.company_name}</p>
-        <p className={styles.meta}>Organization number: {data.profile.org_number}</p>
-        <p className={styles.meta}>Role: {data.session.role}</p>
+    <main className="min-h-screen bg-[var(--bk-color-bg-subtle)] px-4 py-8 text-[var(--bk-color-text-primary)] sm:px-6 lg:px-10">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <DashboardCard>
+          <h1 className="mt-2 text-[32px] font-semibold leading-tight text-[var(--bk-color-text-strong)]">
+            {data.profile.company_name}
+          </h1>
+          <p className="mt-1 text-sm font-medium text-[var(--bk-color-text-muted)]">
+            org.nr.: {data.profile.org_number}
+          </p>
+        </DashboardCard>
 
-        <form className={styles.form} onSubmit={onAddressSubmit}>
-          <label className={styles.field}>
-            <span>Address line 1</span>
-            <input
-              value={address.line1}
-              onChange={(event) => setAddress((prev) => ({ ...prev, line1: event.target.value }))}
-              required
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Address line 2</span>
-            <input
-              value={address.line2 ?? ""}
-              onChange={(event) =>
-                setAddress((prev) => ({
-                  ...prev,
-                  line2: event.target.value || undefined,
-                }))
-              }
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Postal code</span>
-            <input
-              value={address.postalCode}
-              onChange={(event) => setAddress((prev) => ({ ...prev, postalCode: event.target.value }))}
-              required
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>City</span>
-            <input
-              value={address.city}
-              onChange={(event) => setAddress((prev) => ({ ...prev, city: event.target.value }))}
-              required
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Country (2-letter code)</span>
-            <input
-              value={address.country}
-              maxLength={2}
-              onChange={(event) =>
-                setAddress((prev) => ({ ...prev, country: event.target.value.toUpperCase() }))
-              }
-              required
-            />
-          </label>
-
-          <button className={styles.retryButton} type="submit" disabled={saveState === "saving"}>
-            {saveState === "saving" ? "Saving..." : "Save address"}
-          </button>
-        </form>
-
-        {saveMessage ? <p className={styles.success}>{saveMessage}</p> : null}
-        {syncMessage ? <p className={styles.syncStatus}>{syncMessage}</p> : null}
-        {syncReport && !syncReport.inSync ? (
-          <div className={styles.mismatchBox}>
-            <p className={styles.reason}>Mismatch summary</p>
-            <ul className={styles.mismatchList}>
-              {syncReport.mismatches.map((mismatch, index) => (
-                <li key={`${mismatch.key}-${index}`}>
-                  <strong>{mismatch.key}</strong>
-                  <div>Source: {JSON.stringify(mismatch.sourceValue)}</div>
-                  <div>Mirrored: {JSON.stringify(mismatch.mirroredValue)}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {runtimeError ? (
+          <DashboardAlert
+            variant="error"
+            title={getDashboardErrorCopy(runtimeError.error, runtimeError.state).title}
+          >
+            <p>{getDashboardErrorCopy(runtimeError.error, runtimeError.state).description}</p>
+            <p className="mt-1">{getDashboardErrorCopy(runtimeError.error, runtimeError.state).action}</p>
+            {getDashboardErrorCopy(runtimeError.error, runtimeError.state).showRequestId ? (
+              <p className="mt-2 font-mono text-xs text-[var(--bk-color-text-subtle)]">
+                Referanse for support: {runtimeError.error.requestId}
+              </p>
+            ) : null}
+          </DashboardAlert>
         ) : null}
+
+        <section className="overflow-hidden rounded-[6px] border border-[var(--bk-color-border-default)] bg-[var(--bk-color-bg-default)] shadow-[0_4px_12px_rgba(0,0,0,0.10)]">
+          <div className="border-b border-[var(--bk-color-border-default)] px-2 sm:px-4">
+            <DashboardTabs
+              tabs={tabs}
+              onSelect={(tab) => {
+                setActiveSection(tab.key);
+              }}
+            />
+          </div>
+          <div className="p-6 sm:p-8">{renderActiveSection()}</div>
+        </section>
       </section>
     </main>
   );

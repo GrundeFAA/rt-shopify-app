@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bk-color-bg-default: #ffffff;
+    --bk-color-bg-subtle: #f9f9f9;
+    --bk-color-bg-muted: #f1f3f4;
+    --bk-color-text-primary: #2f2f2f;
+    --bk-color-text-strong: #121212;
+    --bk-color-text-muted: #4a4a4a;
+    --bk-color-text-subtle: #828282;
+    --bk-color-border-default: #d8d8d8;
+    --bk-color-accent-primary: #c4262f;
+    --bk-color-accent-primary-hover: #9c0c11;
+    --bk-color-accent-secondary: #2d4d86;
+  }
+
+  html,
+  body {
+    font-family: "IBM Plex Sans", sans-serif;
+    color: var(--bk-color-text-primary);
+    background: var(--bk-color-bg-subtle);
+  }
+}

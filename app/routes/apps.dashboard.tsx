@@ -1,4 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
+import { MembershipRoleSchema, MembershipStatusSchema } from "../contracts/auth.schema";
 import { AppError } from "../modules/auth/errors";
 import { resolveMembershipByCustomerId } from "../modules/auth/membership.server";
 import { verifyAppProxyRequest } from "../modules/auth/proxy.server";
@@ -19,7 +20,7 @@ function escapeHtmlAttribute(value: string): string {
 function renderProxyShell(iframePath: string): string {
   const iframeSrc = escapeHtmlAttribute(iframePath);
   return `<!doctype html>
-<html lang="en">
+<html lang="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,7 +31,7 @@ function renderProxyShell(iframePath: string): string {
     </style>
   </head>
   <body>
-    <iframe src="${iframeSrc}" title="RT Dashboard"></iframe>
+    <iframe src="${iframeSrc}" title="RT kundedashboard"></iframe>
   </body>
 </html>`;
 }
@@ -94,6 +95,27 @@ function withQueryParam(urlValue: string, key: string, value: string): string {
   return url.toString();
 }
 
+function getDevMembershipOverrides(request: Request): {
+  role?: "administrator" | "user";
+  status?: "active" | "inactive";
+} {
+  if (process.env.NODE_ENV === "production") {
+    return {};
+  }
+
+  const url = new URL(request.url);
+  const roleParam = url.searchParams.get("role");
+  const statusParam = url.searchParams.get("status");
+
+  const parsedRole = roleParam ? MembershipRoleSchema.safeParse(roleParam) : null;
+  const parsedStatus = statusParam ? MembershipStatusSchema.safeParse(statusParam) : null;
+
+  return {
+    role: parsedRole?.success ? parsedRole.data : undefined,
+    status: parsedStatus?.success ? parsedStatus.data : undefined,
+  };
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const proxyContext = verifyAppProxyRequest(request);
@@ -108,7 +130,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
 
-    if (membership.status !== "active") {
+    const devOverrides = getDevMembershipOverrides(request);
+    const effectiveMembership = {
+      ...membership,
+      role: devOverrides.role ?? membership.role,
+      status: devOverrides.status ?? membership.status,
+    };
+    const bypassInactiveGateForDevOverride =
+      process.env.NODE_ENV !== "production" && Boolean(devOverrides.status);
+
+    if (effectiveMembership.status !== "active" && !bypassInactiveGateForDevOverride) {
       throw new AppError(
         "AUTH_INACTIVE_MEMBERSHIP",
         "Your membership is pending activation.",
@@ -118,11 +149,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const sessionToken = issueDashboardSessionToken({
-      customerId: membership.customerId,
-      companyId: membership.companyId,
+      customerId: effectiveMembership.customerId,
+      companyId: effectiveMembership.companyId,
       shop: proxyContext.shop,
-      role: membership.role,
-      status: membership.status,
+      role: effectiveMembership.role,
+      status: effectiveMembership.status,
     });
 
     const iframeSource = withQueryParam(
