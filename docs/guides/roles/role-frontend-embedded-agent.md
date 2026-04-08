@@ -13,12 +13,14 @@ Build the customer-facing embedded/iframe UI with strict style isolation and det
 - `docs/06-error-handling-and-reliability.md`
 - `docs/08-company-dashboard-mvp-requirements.md`
 - `docs/guides/engineering-guidelines.md`
+- `docs/specs/brand-kit.md`
 
 ## Responsibilities
 - Keep proxy shell minimal; full UI stays inside iframe app.
 - Ensure no storefront/theme CSS leaks into dashboard app.
 - Consume backend contracts; do not duplicate backend authorization logic in UI.
 - Implement deterministic frontend states for known error codes.
+- Treat `docs/specs/brand-kit.md` as the visual baseline for dashboard UI decisions.
 
 ## Do not
 - Make authorization decisions in client-only logic.

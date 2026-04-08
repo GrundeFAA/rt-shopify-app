@@ -6,6 +6,24 @@ Capture the first concrete product requirements for the shared company dashboard
 ## Core Experience
 The dashboard is a shared workspace for users who belong to the same company.
 
+### Customer UX Standard (MVP)
+- The dashboard is customer-facing and designed for non-technical users.
+- All customer-facing dashboard text must be Norwegian (Bokmal) in production UI.
+- Primary flows must be understandable without technical knowledge:
+  - view company information
+  - view company orders
+  - manage shared addresses
+  - understand access and activation status
+- Error and pending states must provide plain-language guidance on what the user should do next.
+- Production customer UI must not display technical diagnostics or internal error metadata.
+- UX decisions should prefer clarity and confidence over technical transparency in customer views.
+
+### Error UX Acceptance Signals (MVP)
+- Inactive members see a dedicated pending-activation state with next-step guidance.
+- Unauthorized/forbidden states explain access outcome without technical jargon.
+- Temporary dependency failures provide a clear retry path when appropriate.
+- Customer-facing error UI can include `requestId` for support, but never raw technical error payloads.
+
 ## MVP Data Domains
 
 ### Company Information

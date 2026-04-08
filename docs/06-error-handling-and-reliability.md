@@ -139,6 +139,30 @@ Webhook signature validation is a separate flow and uses Shopify HMAC header ver
 - Display `requestId` in support/error view
 - For `AUTH_INACTIVE_MEMBERSHIP`, redirect to pending-activation page with administrator contact guidance
 
+### Customer-facing message policy (production)
+- Treat dashboard users as non-technical customers.
+- Use plain-language explanations and next-step guidance in customer UI.
+- Do not expose internal diagnostics (`details`) or technical error codes in production customer UI.
+- Keep technical diagnostics available in logs and internal support tooling, correlated through `requestId`.
+
+### Canonical dashboard error mapping spec
+This mapping is the default contract for customer-facing dashboard UX. Frontend should map backend codes into these categories and render the defined customer behavior.
+
+| Category | Backend code examples | Customer message intent | Primary action | Request ID |
+|---|---|---|---|---|
+| `unauthorized` | `AUTH_INVALID_IFRAME_SESSION`, `AUTH_EXPIRED_IFRAME_SESSION` | Session is missing/expired; user must re-open dashboard from storefront | Re-open dashboard | Show |
+| `forbidden` | `AUTH_FORBIDDEN_ROLE`, `AUTH_NO_MEMBERSHIP` | User currently does not have access to this dashboard area | Contact company administrator | Show |
+| `pending_activation` | `AUTH_INACTIVE_MEMBERSHIP` | Account is linked but waiting for activation | Wait + contact company administrator | Optional |
+| `sync_in_progress` | `SYNC_PROCESSING_FAILED` with `details.syncState=sync_in_progress` | Data is still being prepared/synchronized | Retry later | Optional |
+| `temporarily_unavailable` | `SHOPIFY_TEMPORARY_FAILURE`, `SHOPIFY_RATE_LIMITED`, `INFRA_TIMEOUT`, `INFRA_UNAVAILABLE`, `SYNC_WRITE_ABORTED`, `SYNC_RECONCILIATION_MISMATCH` | Temporary dependency issue prevented completion | Retry (if retryable) or contact support | Show |
+| `input_issue` | `VALIDATION_FAILED`, `STATE_CONFLICT` | Submitted data/action cannot be completed as entered | Correct input and retry | Optional |
+| `generic_error` | `INTERNAL_ERROR` or unknown code | Unexpected failure occurred | Retry or contact support | Show |
+
+Implementation notes:
+- Keep message copy plain-language and action-oriented.
+- In production customer UI, never render raw `code` values or `details` payload.
+- `requestId` is the supported bridge from customer UI to internal logs/support triage.
+
 ## Observability and Alerting
 Track and alert on:
 - API error rate by `code`

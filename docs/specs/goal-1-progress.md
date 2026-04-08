@@ -1,5 +1,7 @@
 # Goal 1 Progress
 
+> Historical ledger note: This file is maintained as `P1-G1` history. Active new execution tracking now uses canonical Phase 2 ledgers (`docs/specs/p2-g1-progress.md`, `docs/specs/p2-g2-progress.md`).
+
 ## Goal metadata
 - Goal: `Goal 1 - Embedded App Foundation`
 - Owner: `Architect/Tech Lead`

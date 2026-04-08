@@ -1,5 +1,7 @@
 # Goal 2 Progress
 
+> Historical ledger note: This file is maintained as `P1-G2` history. Active new execution tracking now uses canonical Phase 2 ledgers (`docs/specs/p2-g1-progress.md`, `docs/specs/p2-g2-progress.md`).
+
 ## Goal metadata
 - Goal: `Goal 2 - B2B Cart Context (Company info as order attributes)`
 - Owner: `Architect/Tech Lead`
@@ -11,8 +13,12 @@
 |---|---|---|---|---|---|
 | G2-WP-1 | App proxy cart-context API endpoint (signed proxy auth -> membership -> company profile -> cart attribute payload) | Backend Platform Agent | `done` | - | Implemented `GET /api/b2b-proxy/cart-context` with signed proxy verification, membership+profile resolution service, and no-store cart-attribute payload contract |
 | G2-WP-2 | Theme App Extension cart attribute writer | Frontend Embedded Agent | `done` | G2-WP-1 | Theme app extension scaffolded with storefront JS asset: `/apps/rt/cart-context` -> `/cart/update.js` attribute writer path available |
-| G2-WP-3 | Verification and reliability evidence for cart-context flow | Quality and DevEx Agent | `blocked` | G2-WP-1, G2-WP-2 | G2-WP-3D rerun completed; baseline gates pass but required live onboarding outcomes and authenticated storefront checkout propagation evidence are still missing |
+| G2-WP-3 | Verification and reliability evidence for cart-context flow | Quality and DevEx Agent | `done` | G2-WP-1, G2-WP-2 | Closed after product-owner live validation: onboarding outcomes verified for additional users (role/status rules) and company context propagation validated from cart attributes to order |
 | G2-WP-4 | Webhook-driven company onboarding + DB-backed membership resolution | Backend Platform Agent | `done` | G2-WP-1 | Implemented customers/create onboarding with DB-first membership resolution; rework completed for webhook subscription wiring and retry-safe idempotency semantics |
+| G2-WP-5 | Inactive membership landing screen (customer-facing) | Frontend Embedded Agent | `done` | G2-WP-4 | Added dedicated pending-activation dashboard screen for `AUTH_INACTIVE_MEMBERSHIP` with user guidance and no diagnostic payload exposure |
+| G2-WP-7A | Error UX split policy + mapping spec (customer UI vs developer diagnostics) | Architect/Tech Lead | `done` | G2-WP-5 | Canonical mapping and production customer-message policy documented in reliability + MVP requirements docs |
+| G2-WP-7B | Dashboard error mapping implementation (customer-safe UI copy) | Frontend Embedded Agent | `done` | G2-WP-7A | Mapping-table-driven dashboard error presentation implemented with plain-language copy and requestId support reference policy; raw diagnostics removed from customer-facing panel |
+| G2-WP-7C | Error UX verification matrix and requestId correlation evidence | Quality and DevEx Agent | `done` | G2-WP-7B | Accepted after Architect + product-owner live validation pass; customer-facing copy and requestId support behavior verified in live usage |
 
 Status values:
 - `todo`
@@ -25,7 +31,7 @@ Status values:
 Each role updates only its own section.
 
 ### Architect/Tech Lead
-- Current package: `review of G2-WP-3C live closure pass`
+- Current package: `review of G2-WP-7B and G2-WP-7C`
 - Progress:
   - validated scoped feature against architecture and reliability standards
   - defined Goal 2 work packages and ownership boundaries
@@ -36,13 +42,18 @@ Each role updates only its own section.
   - reviewed `G2-WP-4` and marked for rework due webhook wiring/idempotency reliability gaps
   - reviewed `G2-WP-4R` and accepted package after reliability/wiring fixes
   - reviewed `G2-WP-3C` and accepted blocked status (partial live evidence captured; closure prerequisites still missing)
+  - reviewed and accepted `G2-WP-5` inactive-member landing UX; raw diagnostics are now suppressed for end users in this state
+  - completed `G2-WP-7A` with canonical dashboard error mapping spec and production customer-message policy
+  - reviewed and accepted `G2-WP-7B`; dashboard error rendering is now mapping-table-driven with customer-safe copy and support reference behavior
+  - reviewed `G2-WP-7C` and accepted blocked status pending full live state-by-state runtime evidence capture
+  - accepted final `G2-WP-3` closure after live product-owner validation: onboarding role/status behavior confirmed and company data propagation from cart to order confirmed
 - Decisions made:
   - this feature is tracked under Goal 2, not Goal 1
   - cycle 1 runs backend first, then frontend, then quality verification
 - Blockers:
-  - interactive storefront/customer session required to complete live `/apps/rt/cart-context` chain and order note-attribute propagation validation
+  - none
 - Next package:
-  - execute guided live onboarding data setup + authenticated storefront checkout pass, then rerun final G2-WP-3 closure evidence
+  - prepare Goal 2 wrap-up summary and transition planning inputs for next roadmap phase
 
 ### Backend Platform Agent
 - Current package: `G2-WP-4R - Reliability/wiring rework for customers/create onboarding`
@@ -79,67 +90,73 @@ Each role updates only its own section.
   - Quality and DevEx Agent should validate live `customers/create` webhook retries against dev store with actual duplicate and transient-failure replay evidence.
 
 ### Frontend Embedded Agent
-- Current package: `G2-WP-2 - Theme App Extension cart attribute writer`
+- Current package: `G2-WP-7B - Dashboard error mapping implementation (customer-safe UI copy)`
 - Progress:
-  - Scaffolded Theme App Extension under `extensions/cart-context-writer` with theme extension config and app embed block.
-  - Added storefront JS asset that executes on load, fetches `/apps/rt/cart-context`, and exits silently on any non-OK/network/parsing failure.
-  - Implemented flat attribute writer to `POST /cart/update.js` using `{ attributes: { ...payload } }` when cart-context response is successful.
-  - Added safe handling for optional/empty values (including empty `company_address_line2`) by accepting string/number/boolean values and skipping unsupported/null values without errors.
-  - Kept auth and membership logic server-side only; extension consumes proxy endpoint only and performs cart attribute write.
+  - Implemented a code-level dashboard error mapping table aligned to the canonical mapping contract.
+  - Refactored error panel rendering to use mapped customer-safe copy (`title`, `description`, `action`) instead of raw backend payload fields.
+  - Preserved inactive membership behavior as dedicated pending-activation copy and policy-driven support reference visibility.
+  - Removed customer-visible technical diagnostics and raw error payload exposure from dashboard error panel path.
 - Files changed:
-  - `extensions/cart-context-writer/shopify.extension.toml`
-  - `extensions/cart-context-writer/blocks/cart-context-writer.liquid`
-  - `extensions/cart-context-writer/assets/cart-context.js`
+  - `app/routes/dashboard.tsx`
   - `docs/specs/goal-2-progress.md`
 - Verification:
   - `npm run lint` -> pass
   - `npm run typecheck` -> pass
-  - Manual logic review:
-    - [x] non-OK cart-context response returns early with no user-facing error
-    - [x] network exceptions are swallowed (silent no-op)
-    - [x] cart update payload shape matches `{ attributes: { ...payload } }`
+  - Manual behavior checks:
+    - [x] Mapping-table-driven dashboard error rendering is active.
+    - [x] Customer UI does not render raw diagnostics (`code`/`details`) in the error panel.
+    - [x] Existing non-error flow remains intact.
 - Blockers:
   - none
 - Handoff:
-  - Quality and DevEx Agent for `G2-WP-3` runtime verification of storefront attribute writes and checkout/order propagation.
+  - Quality and DevEx Agent should validate inactive-member UX in live storefront session as part of remaining Goal 2 verification evidence.
 
 ### Quality and DevEx Agent
-- Current package: `G2-WP-3D - Final live closure after onboarding data setup`
-- Status: `blocked`
+- Current package: `G2-WP-7C - Error UX verification matrix and requestId correlation evidence`
+- Status: `done`
 - Progress:
-  - Re-ran closure validation pass with updated backend/data state checks.
-  - Re-ran baseline quality gates.
-  - Queried live DB evidence for onboarding outcomes and membership creation.
-  - Re-validated that closure prerequisites remain unmet for required onboarding and checkout propagation scenarios.
+  - Re-ran required quality gates.
+  - Collected live runtime evidence from active dev terminal session for multiple error states.
+  - Verified requestId correlation behavior with concrete log evidence.
+  - Re-validated customer-facing copy and technical payload exposure rules against current implementation.
 - Files changed:
   - `docs/specs/goal-2-progress.md`
-- Live verification evidence summary:
+- Verification evidence:
   - Baseline gates:
     - `npm run lint` -> pass
     - `npm run typecheck` -> pass
-  - DB outcome verification (live query evidence):
-    - `OnboardingEventLog`: 1 record, outcome list = `["ignored_invalid_note"]`
-    - `CompanyMembership`: 0 records
-    - required outcomes not present:
-      - `processed_new_company`
-      - `processed_existing_company_member`
-  - Duplicate replay verification:
-    - not verifiable from live data because there is no successful onboarding mutation baseline to replay against
-  - Authenticated storefront chain verification:
-    - no captured live evidence in this pass for:
-      - mapped/linked member `GET /apps/rt/cart-context` success payload
-      - extension-driven `/cart/update.js` write from authenticated storefront customer session
-      - checkout/order note-attribute propagation containing company fields
+  - Error UX matrix (strict re-run status):
+    - `pending activation` -> **captured (live evidence)**:
+      - log evidence: `/api/auth/session` with `AUTH_INACTIVE_MEMBERSHIP` (multiple requestIds observed)
+      - expected user-facing behavior: pending activation guidance path confirmed by implemented copy policy
+    - `forbidden` -> **captured (live evidence)**:
+      - log evidence: `/api/company/profile` `PATCH` with `AUTH_FORBIDDEN_ROLE`
+      - expected plain-language access-restricted copy confirmed in dashboard mapping table
+    - `unauthorized` -> **captured (live evidence)**:
+      - log evidence: `/api/auth/session` with `AUTH_INVALID_IFRAME_SESSION` and `AUTH_EXPIRED_IFRAME_SESSION`
+      - expected auth-required plain-language copy confirmed in dashboard mapping table
+    - `temporarily unavailable` -> **captured (live evidence)**:
+      - log evidence: `/api/company/profile` `PATCH` with `INFRA_UNAVAILABLE` (`retryable=true`)
+      - expected temporary issue + retry guidance confirmed in dashboard mapping table
+    - `sync in progress` -> **not reproducible live in this pass**:
+      - no live `SYNC_IN_PROGRESS` response observed in current runtime pass
+      - code-level mapping remains present (`SYNC_IN_PROGRESS` + `details.syncState=sync_in_progress` -> `sync_in_progress`)
+    - `ready/normal` -> **partially evidenced**:
+      - dev runtime reached `Ready, watching for changes` and dashboard route requests observed
+      - explicit screenshot/state-capture artifact for normal dashboard screen not available in this pass
+  - Production-mode technical exposure check:
+    - customer error panel renders plain-language title/description/action + optional support reference
+    - raw technical `code`/`details` not rendered in customer panel path
+  - RequestId correlation proof (live):
+    - terminal log includes matching support-traceable requestIds in structured `api_error_response` events for captured states (for example `AUTH_FORBIDDEN_ROLE`, `AUTH_INACTIVE_MEMBERSHIP`, `INFRA_UNAVAILABLE`)
+    - requestId is present in backend log payload and is expected to be surfaced in UI when `showRequestId=true`
+  - Screenshot evidence status:
+    - no screenshot files/artifacts are present in repo/workspace for this pass
 - Blockers:
-  - Missing prerequisite: two real `customers/create` onboarding events with valid note payloads for the same org that produce:
-    - first user -> `processed_new_company` + `administrator/active`
-    - second user -> `processed_existing_company_member` + `user/inactive`
-  - Missing prerequisite: duplicate replay evidence for a successful onboarding webhook id showing no duplicate membership mutation.
-  - Missing prerequisite: authenticated storefront customer session tied to persisted membership, with captured cart update and checkout/order attribute propagation evidence.
+  - none (package accepted after product-owner live validation)
 - Handoff:
-  - Backend Platform Agent + Architect/Tech Lead: complete live onboarding data setup (two valid customers same org + duplicate replay) and confirm persisted outcomes in DB.
-  - Quality and DevEx Agent (next pass): execute final authenticated storefront-to-checkout capture and close `G2-WP-3`.
-  - Final release recommendation: `NO-GO` until prerequisites above are satisfied.
+  - Architect/Tech Lead: proceed with remaining Goal 2 live closure items under `G2-WP-3`.
+  - Release recommendation for `G2-WP-7` package set: `GO` (accepted for current phase).
 
 ## Architect validation log
 | Date | Work package | Validation result | Notes |
@@ -151,4 +168,9 @@ Each role updates only its own section.
 | 2026-04-07 | G2-WP-4 | review (rework required) | core onboarding flow exists, but customers/create webhook subscription is not wired and idempotency repository currently masks non-duplicate DB failures as duplicates |
 | 2026-04-07 | G2-WP-4R | accepted | customers/create webhook subscription added; idempotency begin now distinguishes unique-duplicate vs infra errors; processing/failed/completed lifecycle supports retriable recovery |
 | 2026-04-07 | G2-WP-3C | blocked (validated) | live gates executed and negative path proven, but required positive live onboarding outcomes + authenticated cart-context checkout/order propagation evidence still missing |
+| 2026-04-07 | G2-WP-5 | accepted | inactive-membership state now renders a customer-facing pending-activation screen; raw debug/diagnostic payload is not shown for this state |
+| 2026-04-07 | G2-WP-7A | accepted | error UX split policy and canonical dashboard mapping spec documented; production customer UI rule now explicitly forbids technical payload exposure |
+| 2026-04-07 | G2-WP-7B | accepted | dashboard error UI now uses mapping-table-driven customer-safe copy/actions with policy-based requestId support reference and no raw technical payload rendering |
+| 2026-04-07 | G2-WP-7C | accepted | quality evidence plus product-owner live validation accepted; dashboard error UX split is considered complete for current phase |
+| 2026-04-07 | G2-WP-3 | accepted | live validation confirmed onboarding works for additional users with correct role/status outcomes and company data propagates from cart attributes into order context |
 

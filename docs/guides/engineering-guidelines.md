@@ -11,6 +11,7 @@ It complements these foundation docs:
 - `docs/07-validation-standard-zod.md`
 - `docs/08-company-dashboard-mvp-requirements.md`
 - `docs/09-customer-onboarding-webhook-flow.md`
+- `docs/specs/brand-kit.md` (frontend visual baseline for dashboard UI work)
 
 ## Engineering Principles
 1. **Security first, fail closed**
@@ -239,6 +240,8 @@ Notes:
 - Dashboard UI, CSS, and JS live inside iframe app.
 - No storefront/theme CSS imported into dashboard iframe app.
 - React components must not perform authorization decisions; they consume authorized API results.
+- Dashboard visual decisions (tokens/components) should align with `docs/specs/brand-kit.md` unless an Architect-approved exception is documented.
+- Customer-facing dashboard copy must be Norwegian (Bokmal) in production UI.
 
 ## Testing and Quality Gates
 Minimum expectations for all non-trivial changes:
