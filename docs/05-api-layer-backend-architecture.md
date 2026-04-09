@@ -7,17 +7,15 @@ Define the backend structure for a low-drift sync model between app DB and Shopi
 Application services orchestrate use-cases. Repositories and Shopify gateways do not orchestrate each other.
 
 ## Sync Consistency Policy (Current Decision)
-For company profile writes in MVP (for example company address updates), sync must be all-or-nothing:
-- If Shopify mirror write fails, the app DB write for that operation must not be committed.
-- No partial success is accepted for this flow.
-- App DB remains source of truth, but writes are committed only after required Shopify mirror step succeeds.
+- Company/postal profile address is app-local in MVP and has no Shopify sync path.
+- For workflows that are explicitly marked as hard-sync, no partial success is accepted.
 
 ## Hard-Sync Orchestration Standard (Implemented Pattern)
 For cross-boundary write flows that must remain strongly aligned (Shopify + app DB), use the hard-sync orchestration pattern:
 
 - Shared orchestrator in `app/modules/sync/core/hard-sync-orchestrator.ts`
 - One operation adapter per aggregate/domain, not per field-level action
-- Current aggregate adapter: `app/modules/company/services/company-profile-hard-sync.operation.ts`
+- Keep aggregate adapters only for workflows that remain explicitly hard-sync in accepted MVP scope.
 
 Execution contract:
 1. Read current app DB snapshot.

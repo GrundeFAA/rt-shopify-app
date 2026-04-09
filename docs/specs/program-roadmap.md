@@ -68,7 +68,7 @@ Some POC implementations are intentionally experimental and are not automaticall
 
 - Address sync via Shopify metaobject:
   - In POC, this was used to test sync capability/patterns.
-  - It should be treated as a validation experiment, not a locked final product decision.
+  - Final decision: retired for MVP. Company/postal address has no Shopify sync mechanism.
 
 ## Current POC Status (High-Level)
 ### Proven Enough To Continue
@@ -123,6 +123,13 @@ Phase 2 sequence (high-level):
   - must have now
   - later phase
   - out of current scope
+
+## Phase 3 Draft Dependencies (Spec-First)
+Before backend implementation for new dashboard domains, solution specs must be finalized and accepted:
+- `docs/specs/p3-user-onboarding-solution-spec-draft.md`
+- `docs/specs/p3-order-history-solution-spec-draft.md`
+
+Additional domain specs (for example shared delivery addresses) should follow the same spec-first dependency rule.
 
 ## Cross-Phase Production Guardrails (Do Not Forget)
 These items may exist temporarily across multiple development phases for speed, but must be removed or hard-disabled before production readiness.

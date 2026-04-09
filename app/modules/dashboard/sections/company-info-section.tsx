@@ -6,15 +6,13 @@ import {
   DashboardFormSection,
   DashboardModal,
 } from "../components";
-import type { CompanyAddress, DriftReport } from "../dashboard.types";
+import type { CompanyAddress } from "../dashboard.types";
 
 type CompanyInfoSectionProps = {
   address: CompanyAddress;
   setAddress: (updater: (previous: CompanyAddress) => CompanyAddress) => void;
   saveState: "idle" | "saving" | "success";
   saveMessage: string | null;
-  syncMessage: string | null;
-  syncReport: DriftReport | null;
   onAddressSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 };
 
@@ -23,8 +21,6 @@ export function CompanyInfoSection({
   setAddress,
   saveState,
   saveMessage,
-  syncMessage,
-  syncReport,
   onAddressSubmit,
 }: CompanyInfoSectionProps) {
   const [isEditAddressOpen, setIsEditAddressOpen] = useState(false);
@@ -108,33 +104,14 @@ export function CompanyInfoSection({
         </DashboardFormSection>
       </DashboardFormLayout>
 
-      {saveMessage || syncMessage || (syncReport && !syncReport.inSync) ? (
+      {saveMessage ? (
         <div className="border-t border-[var(--bk-color-border-default)] pt-6">
-          <h3 className="text-lg font-semibold text-[var(--bk-color-text-strong)]">Synkstatus</h3>
+          <h3 className="text-lg font-semibold text-[var(--bk-color-text-strong)]">Status</h3>
           <div className="mt-3 grid gap-3">
             {saveMessage ? (
               <DashboardAlert variant="success" title="Adresse oppdatert">
                 <p>{saveMessage}</p>
               </DashboardAlert>
-            ) : null}
-            {syncMessage ? <p className="text-sm text-[var(--bk-color-text-muted)]">{syncMessage}</p> : null}
-            {syncReport && !syncReport.inSync ? (
-              <div className="rounded-[4px] border border-[var(--bk-color-border-default)] bg-[var(--bk-color-bg-subtle)] p-3">
-                <p className="text-sm font-semibold text-[var(--bk-color-text-strong)]">Avvikssammendrag</p>
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[var(--bk-color-text-primary)]">
-                  {syncReport.mismatches.map((mismatch, index) => (
-                    <li key={`${mismatch.key}-${index}`}>
-                      <p className="font-medium">{mismatch.key}</p>
-                      <p className="font-mono text-xs text-[var(--bk-color-text-muted)]">
-                        Kilde: {JSON.stringify(mismatch.sourceValue)}
-                      </p>
-                      <p className="font-mono text-xs text-[var(--bk-color-text-muted)]">
-                        Speilet: {JSON.stringify(mismatch.mirroredValue)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             ) : null}
           </div>
         </div>
@@ -144,7 +121,7 @@ export function CompanyInfoSection({
         open={isEditAddressOpen}
         onClose={setIsEditAddressOpen}
         title="Rediger firmaadresse"
-        description="Oppdater primar firmaadresse. Endringer synkroniseres til firmaprofilen."
+        description="Oppdater primar firmaadresse."
         size="lg"
         showCloseButton
       >

@@ -13,8 +13,8 @@
 | P2-G1-WP-2 | Temporary vs permanent behavior register | Architect/Tech Lead | `in_progress` | P2-G1-WP-1 | Explicitly classify temporary POC behaviors (keep for dev, remove before production, or promote to permanent) |
 | P2-G1-WP-3 | Production hardening checklist baseline | Quality and DevEx Agent | `todo` | P2-G1-WP-2 | Convert cross-phase guardrails into a practical verification checklist for release readiness |
 | P2-G1-WP-4 | Canonical tracking adoption for active work | Architect/Tech Lead | `todo` | P2-G1-WP-1 | Move all new execution tracking to canonical `P<phase>-G<goal>-WP-<n>` IDs |
-| P2-G1-WP-5 | Cleanup execution: dev/test behaviors | Backend Platform Agent | `todo` | P2-G1-WP-2 | Implement approved cleanup actions for temporary POC behaviors with no production regressions |
-| P2-G1-WP-6 | Metaobject sync decision and cleanup path | Architect/Tech Lead | `todo` | P2-G1-WP-2 | Decide whether company-address metaobject sync remains product behavior or is retired as POC experiment; define execution path accordingly |
+| P2-G1-WP-5 | Cleanup execution: dev/test behaviors | Backend Platform Agent | `done` | P2-G1-WP-2 | Retired company-profile metaobject sync code paths/endpoints/UI references; company address update is now DB-only |
+| P2-G1-WP-6 | Metaobject sync decision and cleanup path | Architect/Tech Lead | `done` | P2-G1-WP-2 | Decision locked: retire company-address Shopify metaobject sync; company/postal address has no Shopify sync path |
 
 Status values:
 - `todo`
@@ -39,9 +39,9 @@ This checklist is defined in `P2-G1` and executed in later hardening cycles.
   - mandatory remove or hard-disable before production
   - execution owner: `P2-G1-WP-5`
 - Company-address sync via Shopify metaobject:
-  - currently treated as POC validation candidate pending product decision
-  - decision owner: `P2-G1-WP-6`
-  - cleanup/refactor execution owner (if retired): `P2-G1-WP-5`
+  - product decision: retired (not part of MVP behavior)
+  - company/postal address is app-local only and not synchronized to Shopify
+  - cleanup/refactor execution owner: `P2-G1-WP-5`
 
 Acceptance criteria for cleanup completion:
 - Temporary behaviors are either:
@@ -75,15 +75,19 @@ Each role updates only its own section.
 - Decisions made:
   - use `docs/specs/program-execution-index.md` as canonical naming reference
   - keep legacy Goal 1/Goal 2 ledgers as historical records
+  - retire company-address Shopify metaobject sync from MVP behavior
 - Blockers:
   - none
 - Next package:
-  - continue `P2-G1-WP-2` temporary-vs-permanent behavior classification register and prepare `P2-G1-WP-6` decision brief for metaobject sync path
+  - continue `P2-G1-WP-2` temporary-vs-permanent behavior classification register and execute `P2-G1-WP-5` cleanup for retired metaobject sync path
 
 ### Backend Platform Agent
-- Current package: `unassigned`
+- Current package: `P2-G1-WP-5 - Cleanup execution: dev/test behaviors`
 - Progress:
-  - none
+  - removed company-profile metaobject sync endpoint and related services/gateways/contracts
+  - simplified company address update flow to app DB write only
+  - removed dashboard sync-report references tied to retired mirror flow
+  - verification: `npm run lint` and `npm run typecheck` passing
 - Blockers:
   - none
 
@@ -106,3 +110,5 @@ Each role updates only its own section.
 |---|---|---|---|
 | 2026-04-07 | P2-G1 setup | accepted | canonical tracker created with queued rebase/groundwork board |
 | 2026-04-07 | P2-G1-WP-1 | accepted | legacy-vs-active tracking reconciliation completed and documented in P2 ledger |
+| 2026-04-07 | P2-G1-WP-6 | accepted | product decision locked: remove company-address metaobject sync; no Shopify sync for company/postal address |
+| 2026-04-07 | P2-G1-WP-5 | accepted | cleanup completed in code: retired mirror/drift endpoint and dashboard sync-report references; company address update now app DB-only |

@@ -9,7 +9,6 @@ import {
 } from "../modules/dashboard/components";
 import {
   createBootstrapHeaders,
-  fetchCompanyProfileDrift,
   makeRequestId,
   parseJsonResponse,
   patchCompanyAddress,
@@ -24,7 +23,6 @@ import type {
   CompanyAddress,
   CompanyProfile,
   DashboardSectionKey,
-  DriftReport,
   SessionData,
 } from "../modules/dashboard/dashboard.types";
 import { getDashboardErrorCopy, shouldRenderRuntimeErrorAsFullPage } from "../modules/dashboard/error-copy";
@@ -134,8 +132,6 @@ export default function DashboardRoute() {
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [syncReport, setSyncReport] = useState<DriftReport | null>(null);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(
     data.state === "ready" ? data.bootstrapToken : null,
   );
@@ -220,30 +216,10 @@ export default function DashboardRoute() {
     return renderErrorState(runtimeError.state, runtimeError.error);
   }
 
-  const loadSyncReport = async (): Promise<void> => {
-    const driftResponse = await fetchCompanyProfileDrift(authToken);
-
-    if (!driftResponse.ok) {
-      const error = await readErrorContract(driftResponse);
-      const state = toDashboardFrontendState(error);
-      setRuntimeError({ state, error });
-      return;
-    }
-
-    const report = await parseJsonResponse<DriftReport>(driftResponse);
-    setSyncReport(report);
-    setSyncMessage(
-      report.inSync
-        ? "Profilspeilingen er synkronisert."
-        : `Profilspeilingen har ${report.mismatches.length} avvik.`,
-    );
-  };
-
   const onAddressSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaveState("saving");
     setSaveMessage(null);
-    setSyncMessage(null);
     setRuntimeError(null);
 
     const response = await patchCompanyAddress(address, authToken);
@@ -259,7 +235,6 @@ export default function DashboardRoute() {
     setAddress(updatedProfile.company_address);
     setSaveState("success");
     setSaveMessage("Firmaadresse lagret.");
-    await loadSyncReport();
   };
 
   const tabs: DashboardTabItem<DashboardSectionKey>[] = DASHBOARD_SECTION_CONFIG.map((section) => ({
@@ -278,8 +253,6 @@ export default function DashboardRoute() {
           setAddress={setAddress}
           saveState={saveState}
           saveMessage={saveMessage}
-          syncMessage={syncMessage}
-          syncReport={syncReport}
           onAddressSubmit={onAddressSubmit}
         />
       );

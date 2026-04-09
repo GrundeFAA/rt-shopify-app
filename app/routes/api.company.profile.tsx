@@ -7,12 +7,9 @@ import {
 import { AppError } from "../modules/auth/errors";
 import { requireDashboardSession } from "../modules/auth/middleware.server";
 import { CompanyAddressSchema } from "../contracts/company.schema";
-import { CompanyProfileMirrorGateway } from "../infrastructure/shopify-gateways/company-profile-mirror.gateway.server";
 import { CompanyProfileRepository } from "../modules/company/repositories/company-profile.repository.server";
 import { GetCompanyProfileService } from "../modules/company/services/get-company-profile.service";
 import { UpdateCompanyAddressService } from "../modules/company/services/update-company-address.service";
-import { ShopifyOfflineSessionRepository } from "../modules/sync/repositories/shopify-offline-session.repository.server";
-import { MirrorCompanyProfileService } from "../modules/sync/services/mirror-company-profile.service";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -66,13 +63,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const repository = new CompanyProfileRepository(db);
-    const sessionRepository = new ShopifyOfflineSessionRepository(db);
-    const mirrorGateway = new CompanyProfileMirrorGateway();
-    const mirrorService = new MirrorCompanyProfileService(
-      sessionRepository,
-      mirrorGateway,
-    );
-    const service = new UpdateCompanyAddressService(repository, mirrorService);
+    const service = new UpdateCompanyAddressService(repository);
     const updatedProfile = await service.execute({
       companyId: claims.companyId,
       shop: claims.shop,

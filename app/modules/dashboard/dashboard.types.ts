@@ -25,18 +25,6 @@ export type CompanyProfile = {
   company_address: CompanyAddress;
 };
 
-export type DriftMismatch = {
-  key: "company_name" | "org_number" | "company_address";
-  sourceValue: unknown;
-  mirroredValue: unknown;
-};
-
-export type DriftReport = {
-  companyId: string;
-  inSync: boolean;
-  mismatches: DriftMismatch[];
-};
-
 export type DashboardSectionKey =
   | "company_info"
   | "company_orders"

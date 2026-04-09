@@ -89,10 +89,3 @@ export async function patchCompanyAddress(
     }),
   });
 }
-
-export async function fetchCompanyProfileDrift(authToken: string | null): Promise<Response> {
-  return fetch("/api/sync/company-profile-drift", {
-    method: "GET",
-    headers: createApiHeaders(authToken),
-  });
-}

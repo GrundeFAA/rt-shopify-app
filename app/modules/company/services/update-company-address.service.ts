@@ -1,14 +1,9 @@
 import { AppError } from "../../auth/errors";
-import { MirrorCompanyProfileService } from "../../sync/services/mirror-company-profile.service";
-import { runCompanyProfileHardSyncOperation } from "./company-profile-hard-sync.operation";
 import { CompanyProfileRepository } from "../repositories/company-profile.repository.server";
 import { CompanyProfileOutput, UpdateCompanyAddressInput, UpdateCompanyAddressInputSchema } from "../schemas";
 
 export class UpdateCompanyAddressService {
-  constructor(
-    private readonly repository: CompanyProfileRepository,
-    private readonly mirrorService?: MirrorCompanyProfileService,
-  ) {}
+  constructor(private readonly repository: CompanyProfileRepository) {}
 
   async execute(input: UpdateCompanyAddressInput): Promise<CompanyProfileOutput> {
     const parsedInput = UpdateCompanyAddressInputSchema.safeParse(input);
@@ -25,19 +20,14 @@ export class UpdateCompanyAddressService {
       );
     }
 
-    const result = await runCompanyProfileHardSyncOperation({
-      input: {
-        companyId: parsedInput.data.companyId,
-        shop: parsedInput.data.shop,
-        mutation: {
-          kind: "update_address",
-          companyAddress: parsedInput.data.companyAddress,
-        },
-      },
-      repository: this.repository,
-      mirrorService: this.mirrorService,
-    });
+    const updated = await this.repository.updateCompanyAddress(
+      parsedInput.data.companyId,
+      parsedInput.data.companyAddress,
+    );
+    if (!updated) {
+      throw new AppError("RESOURCE_NOT_FOUND", "Company profile was not found.", 404, false);
+    }
 
-    return result.updatedProfile;
+    return CompanyProfileRepository.toProfileDto(updated);
   }
 }
