@@ -36,6 +36,7 @@ It complements these foundation docs:
 
 6. **Single source of truth per field**
    - Follow ownership rules for app DB vs Shopify-managed data.
+   - "Canonical source of truth" means authoritative target state, not allowance for partial success writes.
    - Do not introduce hidden dual-write flows.
 
 ## Required Layering Rules
