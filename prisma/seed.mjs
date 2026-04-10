@@ -7,13 +7,15 @@ const COMPANY_ID = process.env.TEST_COMPANY_ID ?? "cmp_001";
 const COMPANY_PROFILE = {
   companyName: "Reolteknikk AS",
   orgNumber: "123456789",
-  companyAddress: {
-    line1: "Storgata 15",
-    line2: "Suite 2",
-    postalCode: "0155",
-    city: "Oslo",
-    country: "NO",
-  },
+};
+
+const POST_ADDRESS = {
+  line1: "Storgata 15",
+  line2: "Suite 2",
+  postalCode: "0155",
+  city: "Oslo",
+  country: "NO",
+  source: "dashboard",
 };
 
 const AUTH_MEMBERSHIP_MAP = {
@@ -38,6 +40,32 @@ async function main() {
       ...COMPANY_PROFILE,
     },
   });
+
+  const existingPostAddress = await prisma.companySharedAddress.findFirst({
+    where: {
+      companyId: COMPANY_ID,
+      addressType: "post",
+    },
+    select: { id: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  if (existingPostAddress) {
+    await prisma.companySharedAddress.update({
+      where: { id: existingPostAddress.id },
+      data: POST_ADDRESS,
+    });
+  } else {
+    await prisma.companySharedAddress.create({
+      data: {
+        companyId: COMPANY_ID,
+        addressType: "post",
+        label: "Postadresse",
+        ...POST_ADDRESS,
+        createdByMemberId: "system",
+      },
+    });
+  }
 
   const offlineSession = await prisma.session.findFirst({
     where: { isOnline: false },

@@ -9,6 +9,8 @@ import {
 } from "../modules/dashboard/components";
 import {
   createBootstrapHeaders,
+  fetchCompanyAddresses,
+  fetchCompanyOrders,
   makeRequestId,
   parseJsonResponse,
   patchCompanyAddress,
@@ -21,6 +23,8 @@ import {
 import dashboardTailwindHref from "../modules/dashboard/dashboard-tailwind.css?url";
 import type {
   CompanyAddress,
+  CompanyAddressesResponse,
+  CompanyOrdersListResponse,
   CompanyProfile,
   DashboardSectionKey,
   SessionData,
@@ -38,6 +42,8 @@ type LoaderData =
       state: "ready";
       session: SessionData;
       profile: CompanyProfile;
+      orders: CompanyOrdersListResponse;
+      addresses: CompanyAddressesResponse;
       bootstrapToken: string | null;
     }
   | {
@@ -86,10 +92,30 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
       }
 
       const profile = await parseJsonResponse<CompanyProfile>(profileResponse);
+      const ordersResponse = await fetchCompanyOrders(request, iframeSessionToken);
+      if (!ordersResponse.ok) {
+        const error = await readErrorContract(ordersResponse);
+        return {
+          state: toDashboardFrontendState(error),
+          error,
+        };
+      }
+      const orders = await parseJsonResponse<CompanyOrdersListResponse>(ordersResponse);
+      const addressesResponse = await fetchCompanyAddresses(request, iframeSessionToken);
+      if (!addressesResponse.ok) {
+        const error = await readErrorContract(addressesResponse);
+        return {
+          state: toDashboardFrontendState(error),
+          error,
+        };
+      }
+      const addresses = await parseJsonResponse<CompanyAddressesResponse>(addressesResponse);
       return {
         state: "ready",
         session,
         profile,
+        orders,
+        addresses,
         bootstrapToken: iframeSessionToken,
       };
     }
@@ -259,14 +285,27 @@ export default function DashboardRoute() {
     }
 
     if (activeSection === "company_orders") {
-      return <CompanyOrdersSection />;
+      return (
+        <CompanyOrdersSection
+          orders={data.orders.orders}
+          authToken={authToken}
+          onRuntimeError={(payload) => setRuntimeError(payload)}
+        />
+      );
     }
 
     if (activeSection === "users_invites") {
       return <UsersInvitesSection isAdministrator={data.session.role === "administrator"} />;
     }
 
-    return <SharedDeliveryAddressesSection />;
+    return (
+      <SharedDeliveryAddressesSection
+        initialData={data.addresses}
+        authToken={authToken}
+        canMutate={data.session.status === "active"}
+        onRuntimeError={(payload) => setRuntimeError(payload)}
+      />
+    );
   };
 
   return (

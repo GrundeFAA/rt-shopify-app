@@ -7,22 +7,39 @@ Define the backend structure for a low-drift sync model between app DB and Shopi
 Application services orchestrate use-cases. Repositories and Shopify gateways do not orchestrate each other.
 
 ## Sync Consistency Policy (Current Decision)
-- Company/postal profile address is app-local in MVP and has no Shopify sync path.
+- Company addresses are stored in one canonical table with roles:
+  - `post` (exactly one per company)
+  - `delivery` (shared catalog)
+- Shopify customer addresses are synchronized mirrors of canonical state for eligible members.
+- `post` address is projected first and set as default in Shopify sync payload.
+- Per-user default delivery address preference is out of MVP scope.
 - For workflows that are explicitly marked as hard-sync, no partial success is accepted.
 
 ## Hard-Sync Orchestration Standard (Implemented Pattern)
-For cross-boundary write flows that must remain strongly aligned (Shopify + app DB), use the hard-sync orchestration pattern:
+For cross-boundary write flows that must remain strongly aligned (Shopify + app DB), use one approved orchestration pattern per domain and document which one applies:
 
-- Shared orchestrator in `app/modules/sync/core/hard-sync-orchestrator.ts`
-- One operation adapter per aggregate/domain, not per field-level action
-- Keep aggregate adapters only for workflows that remain explicitly hard-sync in accepted MVP scope.
+- Shared orchestrator in `app/modules/sync/core/hard-sync-orchestrator.ts` for domains that are Shopify-first.
+- Address-domain orchestration in `app/modules/company/services/execute-company-address-sync.service.ts` for canonical-first write + sync-intent + compensation/recovery behavior.
+- One operation adapter/service per aggregate/domain, not per field-level action.
+- Keep aggregate adapters/services only for workflows that remain explicitly hard-sync in accepted MVP scope.
 
-Execution contract:
+Execution contracts:
+
+Shopify-first contract (generic hard-sync):
 1. Read current app DB snapshot.
 2. Write required Shopify mirror state first.
 3. Write app DB second.
 4. If app DB write fails after Shopify success, compensate Shopify back to snapshot.
 5. Return success only when final state is aligned.
+
+Canonical-first contract (addresses):
+1. Write canonical app DB state and persist durable sync intent in one transaction.
+2. Execute Shopify projection sync from canonical state.
+3. If projection fails:
+   - for delivery CRUD: compensate canonical mutation via sync-intent rollback payload
+   - for post address PATCH: rollback canonical post address to previous snapshot
+4. After rollback/compensation, enqueue and run a best-effort recovery sync to reduce projection drift.
+5. Return `SYNC_WRITE_ABORTED` on failed projection attempts after rollback/compensation.
 
 Error contract for hard-sync:
 - Shopify write failure: fail with stage `SYNC_STAGE_SHOPIFY_WRITE_FAILED` and do not persist app DB write.
@@ -101,9 +118,9 @@ Not allowed:
 - If dual-write is unavoidable, define explicit conflict policy
 
 Current MVP ownership decisions:
-- Shared company delivery addresses: app DB source of truth, fan-out synced to member customers in Shopify
+- Company `post` + `delivery` addresses: app DB source of truth, fan-out synced to member customers in Shopify
 - User primary address: individual user-owned data, not part of shared address sync fan-out
-- Orders: Shopify source of truth, mirrored/indexed in app DB for company dashboard queries
+- Orders: Shopify source of truth, read directly from Shopify API for MVP dashboard list/detail lookups (no app-DB order mirror/index)
 - Member activation status: app DB source of truth; Shopify tags mirror verification state (`b2b`, `b2b-unverified`)
 - Company onboarding note payload: temporary source used only during `customers/create`, then removed
 
@@ -128,7 +145,7 @@ Current MVP ownership decisions:
 - Services orchestrate all mutating workflows
 - Repositories are internal DB only
 - Shopify API calls are gateway-only
-- Outbox + worker path exists for async sync
+- Durable sync-intent path exists for cross-boundary address writes
 - Reconciliation plan exists for critical entities
 - Error taxonomy and standard API error contract are enforced across handlers/services/gateways
 - Validation is enforced at every boundary using the zod standard

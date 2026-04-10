@@ -15,9 +15,10 @@ Out of scope:
 - personal/private address model inside company context
 - advanced geocoding/validation providers
 - cross-company address sharing
+- user-managed default delivery address preference
 
 ## Core Decisions (Locked Draft)
-1. App DB is canonical source of truth for company shared delivery addresses.
+1. App DB is canonical source of truth for company addresses with typed roles.
 2. Shopify customer addresses are synchronized mirrors for eligible company members.
 3. Eligible member statuses for ongoing address sync:
    - `active`
@@ -28,14 +29,18 @@ Out of scope:
 5. On membership transition from pending -> active:
    - delete all Shopify customer addresses for that customer
    - sync full shared address set from app DB (clean slate)
-6. In company context, delivery addresses are company-owned (not personal).
-7. Controlled exception: external Shopify address changes from eligible members may be imported into app DB canonical set.
-8. Default delivery address selection is user-specific preference, pointing to a shared company address.
-9. If a shared address referenced as default is deleted, the user default reference is removed automatically.
-10. "Canonical" defines authoritative target state, not permission to accept partial dashboard writes.
-11. Address CRUD in dashboard is allowed for all `active` company members.
-12. Dashboard command success requires canonical write + durable sync intent persistence (enqueue/outbox); no success response on partial command persistence.
-13. Canonical address delete for MVP is hard delete.
+6. Canonical address roles are:
+   - `post` (exactly one per company, edited from company info section)
+   - `delivery` (shared company delivery catalog)
+7. In company context, delivery addresses are company-owned (not personal).
+8. Controlled exception: external Shopify address changes from eligible members may be imported into canonical `delivery` addresses.
+9. Webhook import must never create or overwrite canonical `post` address.
+10. Shopify default address for synced members is always canonical `post` address.
+11. MVP has no member-specific default delivery address preference.
+12. "Canonical" defines authoritative target state, not permission to accept partial success writes.
+13. Address CRUD in dashboard is allowed for all `active` company members.
+14. Dashboard command success requires canonical write + durable sync intent persistence (enqueue/outbox); no success response on partial command persistence.
+15. Canonical address delete for MVP is hard delete for `delivery` addresses.
 
 ## Source-Of-Truth and Projection Model
 
@@ -47,6 +52,7 @@ Out of scope:
 
 ### Projection behavior
 - Fan-out sync writes canonical address set to each eligible member.
+- Canonical `post` address is always projected first and marked as default in Shopify.
 - Projection must converge to canonical set after retries/reconciliation.
 
 ## Member Status Behavior Matrix
@@ -59,23 +65,24 @@ Out of scope:
 
 ### A) Create shared address in dashboard
 1. Validate request and authorize `active` company membership.
-2. Write address to app DB canonical table.
-3. Enqueue fan-out sync to all eligible members (`active`, `inactive`).
-4. Return success when canonical write is committed.
-5. Projection sync may complete asynchronously with retry/reconciliation.
+2. Write address to app DB canonical table + persist sync intent transactionally.
+3. Execute projection sync to all eligible members (`active`, `inactive`) before HTTP success.
+4. If projection sync fails, compensate canonical write (rollback payload) and return failure.
+5. Run best-effort recovery sync after compensation to reduce temporary projection drift.
 
 ### B) Update shared address in dashboard
 1. Validate request and authorize `active` company membership.
-2. Update canonical app DB address.
-3. Enqueue fan-out update to all eligible members.
-4. Preserve deterministic canonical response regardless of projection lag.
+2. Update canonical app DB address + persist sync intent transactionally.
+3. Execute fan-out update to all eligible members.
+4. If projection sync fails, compensate canonical write and return failure.
 5. Edit form must not include default-address controls.
 
 ### C) Delete shared address in dashboard
 1. Validate request and authorize `active` company membership.
-2. Delete canonical address from app DB.
-3. Enqueue fan-out deletion from all eligible members.
-4. Reconcile until mirrors converge.
+2. Delete canonical address from app DB + persist sync intent transactionally.
+3. Execute fan-out deletion from all eligible members.
+4. If projection sync fails, compensate canonical delete and return failure.
+5. Reconcile until mirrors converge.
 
 ### D) Pending -> Active membership transition (clean-slate inherit)
 1. Transition membership to `active` via onboarding flow.
@@ -89,24 +96,19 @@ Policy:
 - If change comes from eligible member (`active` or `inactive`):
   - normalize and deduplicate address
   - import into canonical app DB set as `source=checkout_import`
-  - enqueue fan-out sync to other eligible members
+  - enqueue fan-out sync to all eligible members
 - If member is pending, ignore import for canonical set.
 - App DB remains canonical after import; subsequent sync/reconcile converges mirrors to canonical set.
 
 ## API Surface (Draft)
 - `GET /api/company/addresses`
   - list canonical shared addresses for current company
-  - includes `myDefaultAddressId` for caller (nullable)
 - `POST /api/company/addresses`
   - create canonical shared address
 - `PATCH /api/company/addresses/:id`
   - update canonical shared address
 - `DELETE /api/company/addresses/:id`
   - delete canonical shared address
-- `POST /api/company/addresses/:id/set-default`
-  - set caller's `defaultCompanyAddressId` to selected shared address
-- `POST /api/company/addresses/unset-default`
-  - clear caller's `defaultCompanyAddressId`
 
 Support/repair operations (internal/system):
 - enqueue member fan-out sync
@@ -119,6 +121,7 @@ Support/repair operations (internal/system):
 - `companySharedAddress`
   - `id`
   - `companyId`
+  - `addressType` (`post`, `delivery`)
   - `label` (optional display label)
   - `line1`
   - `line2` (optional)
@@ -130,21 +133,21 @@ Support/repair operations (internal/system):
   - `createdAt`
   - `updatedAt`
 
-### Member preference field (practical option)
-- Add nullable `defaultCompanyAddressId` on `companyMembership`
-  - points to `companySharedAddress.id`
-  - referenced address must belong to same `companyId` as membership
-  - user-specific preference only (does not alter shared address catalog)
-  - on referenced address delete: set to `null` automatically
+Invariants:
+- exactly one `post` address per `companyId`
+- `delivery` addresses are 0..n per `companyId`
 
-### Projection mapping table
-- `companySharedAddressProjection`
-  - `companyAddressId`
-  - `customerId`
-  - `shopifyAddressId`
-  - `syncState` (`in_sync`, `pending`, `failed`)
-  - `lastSyncedAt`
-  - `lastErrorCode` (optional)
+### Projection intent table
+- `companyAddressSyncIntent`
+  - `id`
+  - `companyId`
+  - `companyAddressId` (nullable for reconcile/recovery intents)
+  - `operation` (`ADDRESS_CREATE`, `ADDRESS_UPDATE`, `ADDRESS_DELETE`)
+  - `status` (`pending`, `processing`, `succeeded`, `failed`)
+  - `recipientCustomerIds` (JSON array)
+  - `payload` (JSON metadata, rollback payload, trigger/recovery context)
+  - `createdAt`
+  - `updatedAt`
 
 ## Deterministic Scenarios
 1. Admin creates address in dashboard:
@@ -164,19 +167,14 @@ Support/repair operations (internal/system):
 5. External Shopify address add/edit by customer:
    - for eligible member, address can be imported into canonical set
    - imported address is deduplicated and tagged `source=checkout_import`
+   - canonical `post` address is excluded from import candidates
    - fan-out sync propagates to other eligible members
 
-6. User selects default shared address:
-   - update only that member's `defaultCompanyAddressId`
-   - no change to shared address catalog
-   - only one default is allowed per member at a time
-   - setting a new default replaces previous default atomically
-
-7. Shared address is deleted:
+6. Shared address is deleted:
    - delete canonical address
-   - clear `defaultCompanyAddressId` for members referencing deleted address
+   - next sync converges mirrors to canonical set
 
-8. Member from same company updates/deletes/creates address:
+7. Member from same company updates/deletes/creates address:
    - allowed when membership status is `active`
    - forbidden for pending and inactive memberships
 
@@ -184,8 +182,12 @@ Support/repair operations (internal/system):
 - Dashboard command path (create/update/delete) is fail-closed for canonical persistence:
   - if canonical DB write or durable sync-intent persistence fails, operation fails
   - return success only after both canonical write and sync-intent persistence are committed
-- Shopify projection fan-out is asynchronous and repairable through retry/reconciliation.
-- Canonical DB writes are authoritative for target state and must not depend on immediate projection success.
+- Dashboard command path executes immediate projection sync attempt before success response.
+- If immediate projection fails:
+  - canonical state is compensated/rolled back
+  - operation returns `SYNC_WRITE_ABORTED`
+  - best-effort recovery sync is executed to reduce drift
+- Canonical DB writes are authoritative target state.
 - Projection failures must produce retryable jobs and reconciliation markers.
 - Retry strategy should follow platform baseline backoff/jitter policy.
 - Convergence is required outcome; temporary drift is allowed but must be repairable.
@@ -198,15 +200,12 @@ Support/repair operations (internal/system):
 
 ## UI Contract (MVP)
 1. Create form:
-   - include a checkbox: `Set as my default delivery address (user-specific)`
-   - checkbox only affects caller's `defaultCompanyAddressId`
+   - no default-address controls are shown
 2. Edit form:
    - must not include default-address controls
 3. Address table:
-   - include one default checkbox column for current user preference
-   - checking a row sets it as default for current user
-   - unchecking current default clears default (`null`)
-   - only one row can be checked at a time for each user
+   - no per-user default selection controls are shown
+   - `post` address is handled in company info flow and remains Shopify default during sync
 
 ## Error Contract Alignment
 Use existing taxonomy from `docs/06-error-handling-and-reliability.md`:
@@ -236,8 +235,7 @@ Use existing taxonomy from `docs/06-error-handling-and-reliability.md`:
 1. Whether `inactive` members should keep receiving sync forever or only until explicit offboarding.
 2. Max shared addresses per company (if any).
 3. Country normalization/validation strictness for MVP.
-4. Default fallback behavior when member default is cleared (null vs company primary).
-5. Whether external checkout import dedup should use strict equality only or also fuzzy matching.
+4. Whether external checkout import dedup should use strict equality only or also fuzzy matching.
 
 ## Recommended Implementation Order
 1. Finalize shared sync foundation contract (hard-sync + outbox + retry/reconciliation primitives).

@@ -37,11 +37,12 @@ model CompanyProfile {
   companyId      String   @id
   companyName    String
   orgNumber      String   @unique
-  companyAddress Json
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   memberships    CompanyMembership[]
+  sharedAddresses CompanySharedAddress[]
+  addressSyncIntents CompanyAddressSyncIntent[]
 }
 
 model CompanyMembership {
@@ -50,12 +51,56 @@ model CompanyMembership {
   companyId  String
   role       String
   status     String
+  defaultCompanyAddressId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   company    CompanyProfile @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  defaultCompanyAddress CompanySharedAddress? @relation(fields: [defaultCompanyAddressId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([defaultCompanyAddressId])
+}
+
+model CompanySharedAddress {
+  id                String   @id @default(cuid())
+  companyId         String
+  addressType       String
+  label             String?
+  line1             String
+  line2             String?
+  postalCode        String
+  city              String
+  country           String
+  source            String
+  createdByMemberId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company           CompanyProfile          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  membershipsUsingAsDefault CompanyMembership[]
+  syncIntents       CompanyAddressSyncIntent[]
+
+  @@index([companyId])
+  @@index([companyId, addressType])
+}
+
+model CompanyAddressSyncIntent {
+  id                 String   @id @default(cuid())
+  companyId          String
+  companyAddressId   String?
+  operation          String
+  status             String
+  recipientCustomerIds Json
+  payload            Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  company            CompanyProfile       @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  companyAddress     CompanySharedAddress? @relation(fields: [companyAddressId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([companyAddressId])
 }
 
 model OnboardingEventLog {
