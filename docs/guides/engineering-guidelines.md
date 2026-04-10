@@ -266,6 +266,36 @@ Each PR should answer:
 6. Is this extraction a real shared abstraction or premature DRY?
 7. What tests prove the behavior?
 
+## Tech Lead Assignment and Audit Expectations
+When work is delegated across roles, the Architect/Tech Lead must enforce these standards.
+
+### Work package prompt standard
+- Prompts must be implementation-specific, not generic.
+- Prompts must reference governing docs explicitly:
+  - architecture (`docs/05-api-layer-backend-architecture.md`)
+  - reliability (`docs/06-error-handling-and-reliability.md`)
+  - validation (`docs/07-validation-standard-zod.md`)
+  - MVP/spec docs relevant to the package
+- Prompts must state:
+  - exact in-scope tasks
+  - exact out-of-scope tasks
+  - required file/layer boundaries
+  - required tests and verification commands
+  - expected output format for handoff
+
+### Review/audit standard
+- Review must prioritize bug/risk discovery before summary.
+- Review must verify both:
+  - code correctness
+  - adherence to these engineering guidelines
+- Review must check for:
+  - broken layering boundaries
+  - hidden dual-write flows and ownership drift
+  - missing validation at boundaries
+  - incorrect typed error mapping
+  - missing or weak tests for changed behavior
+- Package is accepted only when required checks pass and no critical findings remain.
+
 ## Team Working Agreement
 - Prefer clarity and explicitness over clever abstractions.
 - Keep module boundaries strict, especially around auth and sync.

@@ -78,6 +78,9 @@ All role prompts must follow this structure:
    - Require an update after each completed work package.
 4. **Response format**
    - Require standard response template (below).
+5. **Tech lead guidance**
+   - Include a short "implementation guidance" section with recommended approach, critical pitfalls, and verification focus.
+   - Guidance must be role-specific (backend vs frontend vs quality), not generic.
 
 ## Prompt location policy (mandatory)
 - Orchestration prompts are sent in chat only.
@@ -100,6 +103,16 @@ Tasks:
 2. <task>
 3. <task>
 
+Implementation guidance (Tech Lead):
+- Recommended approach:
+  - <how to execute safely and incrementally>
+- Pitfalls to avoid:
+  - <known failure modes/regression risks>
+- Must-pass checks before handoff:
+  - <contract/layering/error/UX checks>
+- Verification focus:
+  - <specific tests/manual checks for this package>
+
 File ownership:
 - Allowed:
   - <path/glob>
@@ -118,6 +131,10 @@ Response requirements:
 - Use the response template from `docs/runbooks/parallel-agent-delivery-model.md`
 - If ownership conflict appears, stop and report `BLOCKED`.
 ```
+
+Role-specific guidance examples:
+- Backend: transaction boundaries, sync/retry semantics, typed error mapping, boundary validation, focused service/webhook tests.
+- Frontend: deterministic state transitions, API contract adherence, localization/accessibility constraints, runtime regression checks.
 
 ## Standard response template (Agent -> Architect)
 ```md

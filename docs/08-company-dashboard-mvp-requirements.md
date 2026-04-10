@@ -41,7 +41,7 @@ The dashboard is a shared workspace for users who belong to the same company.
 ### Company Orders
 - Aggregate list of orders across all members linked to the company
 - Shopify remains source of truth for order data
-- App DB stores indexed/mirrored order summaries for dashboard queries
+- MVP order list and single-order details are direct lookup from Shopify API (no app-DB order mirror/index table)
 
 ### Addresses
 Two address types are required:

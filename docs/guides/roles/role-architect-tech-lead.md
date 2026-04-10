@@ -27,9 +27,27 @@ Own system architecture integrity, parallel work orchestration, and acceptance o
   4. File ownership (allowed + forbidden)
   5. Progress doc update requirement
   6. Response template requirement
+- For Backend and Frontend role prompts, include explicit senior-level implementation guidance:
+  - recommended approach (not only desired outcome)
+  - key failure modes/pitfalls to avoid
+  - contract and boundary checks that must pass before handoff
+  - minimum verification depth for changed behavior
 - Never assign overlapping write ownership to parallel agents without sequencing.
 - Send all work-package prompts in chat only; do not create prompt docs.
 - In prompts, state that agents should infer their role from chat context and then read their role doc.
+
+### Role-specific guidance depth (mandatory)
+#### Backend Platform Agent prompts must include
+- Required transaction and sync semantics (fail-closed vs eventual, compensation expectations).
+- Error taxonomy expectations (`AUTH_*`, `VALIDATION_FAILED`, `SHOPIFY_*`, `SYNC_*`, etc).
+- Layering reminders (`Route -> Service -> Repository/Gateway`) and forbidden shortcuts.
+- Required test focus (service behavior, webhook/idempotency, retry/reconciliation when relevant).
+
+#### Frontend Embedded Agent prompts must include
+- UX/state handling expectations (loading/error/empty/success and deterministic transitions).
+- Backend contract usage expectations (no implicit contract changes, no client-side auth decisions).
+- UI behavior constraints from product/spec decisions (for example localization, default controls).
+- Required verification focus (runtime error mapping, accessibility basics, regression checks).
 
 ## Preferred interaction loop with user
 Use this orchestration loop as default:
@@ -63,6 +81,11 @@ Constraints:
 - Validation and typed error standards preserved.
 - Progress doc updated by role for the work package.
 - Verification evidence provided (lint/tests/manual checks).
+- Prompt quality was sufficient for execution:
+  - clear scope/non-goals
+  - role-specific technical guidance
+  - explicit acceptance criteria
+  - explicit verification requirements
 
 ## Definition of done for this role
 - Work package is merged/accepted only when deliverables, verification, and progress ledger updates are complete and consistent.

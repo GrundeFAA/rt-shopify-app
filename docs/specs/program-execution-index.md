@@ -33,12 +33,12 @@ These mappings preserve history without renaming old files.
   - Progress file: `docs/specs/goal-2-progress.md`
 
 ## Current Execution State
-- Active roadmap stage: **Phase 2**
-- Phase 2 starts after P1 validation and focuses on:
-  1. rebase and groundwork
-  2. Tailwind baseline setup
-  3. UI skeleton build-out
-  4. scope lock through UI review
+- Active roadmap stage: **Phase 3**
+- Phase 3 starts with a strict sequential execution gate:
+  1. Orders implementation
+  2. Addresses implementation
+  3. Users/onboarding implementation
+- Movement between steps requires explicit user approval after live testing.
 
 Reference: `docs/specs/program-roadmap.md`
 
@@ -50,10 +50,34 @@ Reference: `docs/specs/program-roadmap.md`
 4. Progress boards must show canonical IDs for all new items.
 5. Architect updates this index when a new phase starts.
 
+## Tech Lead Prompting and Review Standard (Mandatory)
+The Architect/Tech Lead is responsible for assigning work and producing execution-ready prompts for other roles.
+
+Prompt requirements for each work package:
+1. Include exact scope and non-goals for the specific package.
+2. Include required references to governing docs (architecture, reliability, validation, MVP requirements, active spec).
+3. Include implementation guidance like a senior engineer:
+   - preferred file ownership/layering
+   - expected transaction boundaries
+   - expected error mapping and failure semantics
+   - expected tests and verification commands
+4. Include explicit acceptance criteria and handoff format.
+5. Include stop-gate instruction: do not continue to next package without explicit user approval.
+
+Review requirements for each returned package:
+1. Run an audit mindset first: search for bugs, regressions, policy violations, and missing tests.
+2. Verify behavior against source specs, not only against the prompt text.
+3. Confirm layering and data-ownership rules from engineering guidelines.
+4. Re-run required checks (`lint`, `typecheck`, focused tests) before acceptance.
+5. Record decision in progress ledger as `accepted` or `changes_requested` with concrete findings.
+
 ## Active Phase 2 Tracking Files
 Canonical Phase 2 progress ledgers are now active:
 - `docs/specs/p2-g1-progress.md`
 - `docs/specs/p2-g2-progress.md`
+
+## Active Phase 3 Tracking Files
+- `docs/specs/p3-g1-progress.md`
 
 Legacy ledgers remain reference history:
 - `docs/specs/goal-1-progress.md` (`P1-G1` history)
