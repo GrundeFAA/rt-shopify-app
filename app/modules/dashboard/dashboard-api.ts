@@ -89,3 +89,115 @@ export async function patchCompanyAddress(
     }),
   });
 }
+
+export async function fetchCompanyOrders(
+  request: Request,
+  iframeSessionToken: string | null,
+): Promise<Response> {
+  const headers = createBootstrapHeaders(request, iframeSessionToken);
+  const ordersUrl = new URL("/api/company/orders", request.url);
+  ordersUrl.searchParams.set("limit", "20");
+  if (iframeSessionToken) {
+    ordersUrl.searchParams.set("st", iframeSessionToken);
+  }
+
+  return fetch(ordersUrl, {
+    method: "GET",
+    headers,
+  });
+}
+
+export async function fetchCompanyAddresses(
+  request: Request,
+  iframeSessionToken: string | null,
+): Promise<Response> {
+  const headers = createBootstrapHeaders(request, iframeSessionToken);
+  const addressesUrl = new URL("/api/company/addresses", request.url);
+  if (iframeSessionToken) {
+    addressesUrl.searchParams.set("st", iframeSessionToken);
+  }
+
+  return fetch(addressesUrl, {
+    method: "GET",
+    headers,
+  });
+}
+
+export async function fetchCompanyOrderDetail(
+  orderId: string,
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/orders/${encodeURIComponent(orderId)}`, {
+    method: "GET",
+    headers: createApiHeaders(authToken),
+  });
+}
+
+export async function createCompanyAddress(
+  input: {
+    address: {
+      label?: string;
+      line1: string;
+      line2?: string;
+      postalCode: string;
+      city: string;
+      country: string;
+    };
+    setAsMyDefault: boolean;
+  },
+  authToken: string | null,
+): Promise<Response> {
+  return fetch("/api/company/addresses", {
+    method: "POST",
+    headers: createApiHeaders(authToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateCompanyAddress(
+  addressId: string,
+  input: {
+    address: {
+      label?: string;
+      line1: string;
+      line2?: string;
+      postalCode: string;
+      city: string;
+      country: string;
+    };
+  },
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}`, {
+    method: "PATCH",
+    headers: createApiHeaders(authToken),
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteCompanyAddress(
+  addressId: string,
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}`, {
+    method: "DELETE",
+    headers: createApiHeaders(authToken),
+  });
+}
+
+export async function setMyDefaultCompanyAddress(
+  addressId: string,
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}/set-default`, {
+    method: "POST",
+    headers: createApiHeaders(authToken),
+  });
+}
+
+export async function unsetMyDefaultCompanyAddress(authToken: string | null): Promise<Response> {
+  return fetch("/api/company/addresses/unset-default", {
+    method: "POST",
+    headers: createApiHeaders(authToken),
+  });
+}

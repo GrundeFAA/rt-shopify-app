@@ -52,6 +52,13 @@ The company order list must only show orders where:
   - returns company-owned orders for authenticated company member context
   - default sort: newest first
   - pagination required
+- `GET /api/company/orders/:orderId`
+  - returns single company-owned order detail for authenticated company member context
+  - same membership inclusion/exclusion and company ownership rules apply
+
+MVP data access strategy:
+- Orders are fetched directly from Shopify API at read time.
+- No app-DB order mirror/index table is required for MVP.
 
 Potential later:
 - status filters (payment/fulfillment/lifecycle)
@@ -85,6 +92,7 @@ Potential later:
 - Company linkage on order must be treated as snapshot-at-order-time context.
 - List queries must be deterministic and idempotent for same inputs.
 - If status lookup or linkage data is missing/invalid, fail safe (exclude ambiguous rows) and log for reconciliation.
+- Single-order lookup must fail closed (`404`/forbidden outcome) when company ownership or membership policy cannot be verified.
 
 ## Security Rules
 - All reads are company-scoped and authorization-checked server-side.
