@@ -5,8 +5,6 @@ import {
   CreateCompanyAddressOutputSchema,
   DeleteCompanyAddressOutputSchema,
   ListCompanyAddressesOutputSchema,
-  SetDefaultCompanyAddressOutputSchema,
-  UnsetDefaultCompanyAddressOutputSchema,
   UpdateCompanyAddressOutputSchema,
 } from "../../contracts/company-addresses.schema";
 
@@ -21,7 +19,6 @@ export type GetCompanyAddressesInput = z.infer<typeof GetCompanyAddressesInputSc
 
 export const CreateCompanyAddressServiceInputSchema = CompanyAddressActorSchema.extend({
   address: CompanySharedAddressInputSchema,
-  setAsMyDefault: z.boolean().default(false),
 });
 export type CreateCompanyAddressServiceInput = z.infer<typeof CreateCompanyAddressServiceInputSchema>;
 
@@ -36,14 +33,6 @@ export const DeleteCompanyAddressServiceInputSchema = CompanyAddressActorSchema.
 });
 export type DeleteCompanyAddressServiceInput = z.infer<typeof DeleteCompanyAddressServiceInputSchema>;
 
-export const SetDefaultCompanyAddressServiceInputSchema = CompanyAddressActorSchema.extend({
-  addressId: CompanyAddressIdParamsSchema.shape.id,
-});
-export type SetDefaultCompanyAddressServiceInput = z.infer<typeof SetDefaultCompanyAddressServiceInputSchema>;
-
-export const UnsetDefaultCompanyAddressServiceInputSchema = CompanyAddressActorSchema;
-export type UnsetDefaultCompanyAddressServiceInput = z.infer<typeof UnsetDefaultCompanyAddressServiceInputSchema>;
-
 export const ListCompanyAddressesServiceOutputSchema = ListCompanyAddressesOutputSchema;
 export type ListCompanyAddressesServiceOutput = z.infer<typeof ListCompanyAddressesServiceOutputSchema>;
 
@@ -55,9 +44,3 @@ export type UpdateCompanyAddressServiceOutput = z.infer<typeof UpdateCompanyAddr
 
 export const DeleteCompanyAddressServiceOutputSchema = DeleteCompanyAddressOutputSchema;
 export type DeleteCompanyAddressServiceOutput = z.infer<typeof DeleteCompanyAddressServiceOutputSchema>;
-
-export const SetDefaultCompanyAddressServiceOutputSchema = SetDefaultCompanyAddressOutputSchema;
-export type SetDefaultCompanyAddressServiceOutput = z.infer<typeof SetDefaultCompanyAddressServiceOutputSchema>;
-
-export const UnsetDefaultCompanyAddressServiceOutputSchema = UnsetDefaultCompanyAddressOutputSchema;
-export type UnsetDefaultCompanyAddressServiceOutput = z.infer<typeof UnsetDefaultCompanyAddressServiceOutputSchema>;

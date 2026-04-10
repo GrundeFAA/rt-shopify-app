@@ -109,7 +109,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       companyId: claims.companyId,
       customerId: claims.customerId,
       address: parsedBody.data.address,
-      setAsMyDefault: parsedBody.data.setAsMyDefault,
     });
     await enforceSyncOrRollback({
       syncIntentId: result.syncIntentId,

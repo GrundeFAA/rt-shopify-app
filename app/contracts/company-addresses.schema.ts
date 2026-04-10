@@ -35,19 +35,16 @@ export type CompanyAddressIdParams = z.infer<typeof CompanyAddressIdParamsSchema
 
 export const ListCompanyAddressesOutputSchema = z.object({
   addresses: z.array(CompanySharedAddressSchema),
-  myDefaultAddressId: z.string().min(1).nullable(),
 });
 export type ListCompanyAddressesOutput = z.infer<typeof ListCompanyAddressesOutputSchema>;
 
 export const CreateCompanyAddressInputSchema = z.object({
   address: CompanySharedAddressInputSchema,
-  setAsMyDefault: z.boolean().optional().default(false),
 });
 export type CreateCompanyAddressInput = z.infer<typeof CreateCompanyAddressInputSchema>;
 
 export const CreateCompanyAddressOutputSchema = z.object({
   address: CompanySharedAddressSchema,
-  myDefaultAddressId: z.string().min(1).nullable(),
   syncIntentId: z.string().min(1),
 });
 export type CreateCompanyAddressOutput = z.infer<typeof CreateCompanyAddressOutputSchema>;
@@ -68,13 +65,3 @@ export const DeleteCompanyAddressOutputSchema = z.object({
   syncIntentId: z.string().min(1),
 });
 export type DeleteCompanyAddressOutput = z.infer<typeof DeleteCompanyAddressOutputSchema>;
-
-export const SetDefaultCompanyAddressOutputSchema = z.object({
-  myDefaultAddressId: z.string().min(1),
-});
-export type SetDefaultCompanyAddressOutput = z.infer<typeof SetDefaultCompanyAddressOutputSchema>;
-
-export const UnsetDefaultCompanyAddressOutputSchema = z.object({
-  myDefaultAddressId: z.null(),
-});
-export type UnsetDefaultCompanyAddressOutput = z.infer<typeof UnsetDefaultCompanyAddressOutputSchema>;

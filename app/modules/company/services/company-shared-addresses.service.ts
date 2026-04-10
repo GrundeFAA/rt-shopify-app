@@ -10,10 +10,6 @@ import {
   DeleteCompanyAddressServiceOutputSchema,
   GetCompanyAddressesInputSchema,
   ListCompanyAddressesServiceOutputSchema,
-  SetDefaultCompanyAddressServiceInputSchema,
-  SetDefaultCompanyAddressServiceOutputSchema,
-  UnsetDefaultCompanyAddressServiceInputSchema,
-  UnsetDefaultCompanyAddressServiceOutputSchema,
   UpdateCompanyAddressServiceInputSchema,
   UpdateCompanyAddressServiceOutputSchema,
   type CreateCompanyAddressServiceInput,
@@ -22,10 +18,6 @@ import {
   type DeleteCompanyAddressServiceOutput,
   type GetCompanyAddressesInput,
   type ListCompanyAddressesServiceOutput,
-  type SetDefaultCompanyAddressServiceInput,
-  type SetDefaultCompanyAddressServiceOutput,
-  type UnsetDefaultCompanyAddressServiceInput,
-  type UnsetDefaultCompanyAddressServiceOutput,
   type UpdateCompanyAddressServiceInput,
   type UpdateCompanyAddressServiceOutput,
 } from "../shared-addresses.schemas";
@@ -44,8 +36,6 @@ type SharedAddressRepository = Pick<
   | "createWithSyncIntent"
   | "updateWithSyncIntent"
   | "deleteWithSyncIntent"
-  | "setDefaultAddress"
-  | "unsetDefaultAddress"
 >;
 
 function toSharedAddressDto(record: CompanySharedAddressRecord) {
@@ -107,15 +97,11 @@ export class CompanySharedAddressesService {
       throw new AppError("VALIDATION_FAILED", "Invalid company addresses request.", 400, false);
     }
 
-    const membership = await this.requireMembershipForCompany(
-      parsed.data.customerId,
-      parsed.data.companyId,
-    );
+    await this.requireMembershipForCompany(parsed.data.customerId, parsed.data.companyId);
     const addresses = await this.repository.listByCompanyId(parsed.data.companyId);
 
     return ListCompanyAddressesServiceOutputSchema.parse({
       addresses: addresses.map(toSharedAddressDto),
-      myDefaultAddressId: membership.defaultCompanyAddressId,
     });
   }
 
@@ -137,16 +123,13 @@ export class CompanySharedAddressesService {
 
     const created = await this.repository.createWithSyncIntent({
       companyId: parsed.data.companyId,
-      actorCustomerId: parsed.data.customerId,
       actorMembershipId: membership.id,
       address: this.normalizeAddressInput(parsed.data.address),
-      setAsMyDefault: parsed.data.setAsMyDefault,
       syncEligibleCustomerIds,
     });
 
     return CreateCompanyAddressServiceOutputSchema.parse({
       address: toSharedAddressDto(created.address),
-      myDefaultAddressId: created.myDefaultAddressId,
       syncIntentId: created.syncIntentId,
     });
   }
@@ -208,69 +191,5 @@ export class CompanySharedAddressesService {
     }
 
     return DeleteCompanyAddressServiceOutputSchema.parse(deleted);
-  }
-
-  async setDefault(
-    input: SetDefaultCompanyAddressServiceInput,
-  ): Promise<SetDefaultCompanyAddressServiceOutput> {
-    const parsed = SetDefaultCompanyAddressServiceInputSchema.safeParse(input);
-    if (!parsed.success) {
-      throw new AppError("VALIDATION_FAILED", "Invalid set-default request.", 400, false);
-    }
-
-    const membership = await this.requireMembershipForCompany(
-      parsed.data.customerId,
-      parsed.data.companyId,
-    );
-    this.requireActiveMutationMembership(membership);
-
-    // Enforce same-company reference invariant before writing pointer.
-    const address = await this.repository.findByIdAndCompanyId(
-      parsed.data.companyId,
-      parsed.data.addressId,
-    );
-    if (!address) {
-      throw new AppError("RESOURCE_NOT_FOUND", "Shared address was not found.", 404, false);
-    }
-
-    const defaultAddressId = await this.repository.setDefaultAddress({
-      companyId: parsed.data.companyId,
-      customerId: parsed.data.customerId,
-      addressId: parsed.data.addressId,
-    });
-    if (!defaultAddressId) {
-      throw new AppError("AUTH_NO_MEMBERSHIP", "No company membership was found.", 403, false);
-    }
-
-    return SetDefaultCompanyAddressServiceOutputSchema.parse({
-      myDefaultAddressId: defaultAddressId,
-    });
-  }
-
-  async unsetDefault(
-    input: UnsetDefaultCompanyAddressServiceInput,
-  ): Promise<UnsetDefaultCompanyAddressServiceOutput> {
-    const parsed = UnsetDefaultCompanyAddressServiceInputSchema.safeParse(input);
-    if (!parsed.success) {
-      throw new AppError("VALIDATION_FAILED", "Invalid unset-default request.", 400, false);
-    }
-
-    const membership = await this.requireMembershipForCompany(
-      parsed.data.customerId,
-      parsed.data.companyId,
-    );
-    this.requireActiveMutationMembership(membership);
-
-    const updated = await this.repository.unsetDefaultAddress({
-      companyId: parsed.data.companyId,
-      customerId: parsed.data.customerId,
-    });
-    if (!updated) {
-      throw new AppError("AUTH_NO_MEMBERSHIP", "No company membership was found.", 403, false);
-    }
-
-    return UnsetDefaultCompanyAddressServiceOutputSchema.parse({
-      myDefaultAddressId: null,
-    });
   }
 }

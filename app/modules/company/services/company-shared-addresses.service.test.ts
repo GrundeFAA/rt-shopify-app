@@ -15,7 +15,6 @@ type MembershipRecord = {
   customerId: string;
   companyId: string;
   status: MembershipStatus;
-  defaultCompanyAddressId: string | null;
 };
 
 type AddressRecord = {
@@ -75,7 +74,6 @@ function createHarness(input?: { memberships?: MembershipRecord[]; addresses?: A
     },
     async createWithSyncIntent(payload: {
       companyId: string;
-      actorCustomerId: string;
       actorMembershipId: string;
       address: {
         label?: string;
@@ -85,7 +83,6 @@ function createHarness(input?: { memberships?: MembershipRecord[]; addresses?: A
         city: string;
         country: string;
       };
-      setAsMyDefault: boolean;
       syncEligibleCustomerIds: string[];
     }) {
       addressCounter += 1;
@@ -108,17 +105,10 @@ function createHarness(input?: { memberships?: MembershipRecord[]; addresses?: A
         updatedAt: now,
       };
       addresses.set(created.id, created);
-      if (payload.setAsMyDefault) {
-        const actor = memberships.get(payload.actorCustomerId);
-        if (actor) {
-          actor.defaultCompanyAddressId = created.id;
-        }
-      }
       syncIntents.push(`intent-${syncIntentCounter}:${payload.syncEligibleCustomerIds.join(",")}`);
 
       return {
         address: { ...created },
-        myDefaultAddressId: memberships.get(payload.actorCustomerId)?.defaultCompanyAddressId ?? null,
         syncIntentId: `intent-${syncIntentCounter}`,
       };
     },
@@ -171,36 +161,12 @@ function createHarness(input?: { memberships?: MembershipRecord[]; addresses?: A
 
       syncIntentCounter += 1;
       addresses.delete(existing.id);
-      for (const membership of memberships.values()) {
-        if (
-          membership.companyId === payload.companyId &&
-          membership.defaultCompanyAddressId === existing.id
-        ) {
-          membership.defaultCompanyAddressId = null;
-        }
-      }
       syncIntents.push(`intent-${syncIntentCounter}:${payload.syncEligibleCustomerIds.join(",")}`);
 
       return {
         deletedAddressId: existing.id,
         syncIntentId: `intent-${syncIntentCounter}`,
       };
-    },
-    async setDefaultAddress(payload: { companyId: string; customerId: string; addressId: string }) {
-      const membership = memberships.get(payload.customerId);
-      if (!membership || membership.companyId !== payload.companyId) {
-        return null;
-      }
-      membership.defaultCompanyAddressId = payload.addressId;
-      return membership.defaultCompanyAddressId;
-    },
-    async unsetDefaultAddress(payload: { companyId: string; customerId: string }) {
-      const membership = memberships.get(payload.customerId);
-      if (!membership || membership.companyId !== payload.companyId) {
-        return false;
-      }
-      membership.defaultCompanyAddressId = null;
-      return true;
     },
   };
 
@@ -220,7 +186,6 @@ test("enforces company scope and active-only mutations", async () => {
         customerId: "100",
         companyId: "cmp-1",
         status: "inactive",
-        defaultCompanyAddressId: null,
       },
     ],
   });
@@ -236,7 +201,6 @@ test("enforces company scope and active-only mutations", async () => {
           city: "Oslo",
           country: "NO",
         },
-        setAsMyDefault: false,
       }),
     (error: unknown) => {
       assert.ok(error instanceof AppError);
@@ -259,7 +223,7 @@ test("enforces company scope and active-only mutations", async () => {
   );
 });
 
-test("supports create update delete canonical flow and clears default on delete", async () => {
+test("supports create update delete canonical flow", async () => {
   const harness = createHarness({
     memberships: [
       {
@@ -267,21 +231,18 @@ test("supports create update delete canonical flow and clears default on delete"
         customerId: "200",
         companyId: "cmp-1",
         status: "active",
-        defaultCompanyAddressId: null,
       },
       {
         id: "m-11",
         customerId: "201",
         companyId: "cmp-1",
         status: "inactive",
-        defaultCompanyAddressId: null,
       },
       {
         id: "m-12",
         customerId: "202",
         companyId: "cmp-1",
         status: "pending_admin_approval",
-        defaultCompanyAddressId: null,
       },
     ],
   });
@@ -296,12 +257,10 @@ test("supports create update delete canonical flow and clears default on delete"
       city: "Oslo",
       country: "no",
     },
-    setAsMyDefault: true,
   });
 
   assert.equal(created.address.line1, "Street 10");
   assert.equal(created.address.country, "NO");
-  assert.equal(created.myDefaultAddressId, created.address.id);
   assert.equal(harness.syncIntents.length, 1);
   assert.equal(harness.syncIntents[0], "intent-5001:200,201");
 
@@ -328,117 +287,5 @@ test("supports create update delete canonical flow and clears default on delete"
   });
   assert.equal(deleted.deletedAddressId, created.address.id);
   assert.equal(harness.syncIntents.length, 3);
-  assert.equal(harness.memberships.get("200")?.defaultCompanyAddressId, null);
   assert.equal(harness.addresses.size, 0);
-});
-
-test("supports single-default replacement and unset", async () => {
-  const harness = createHarness({
-    memberships: [
-      {
-        id: "m-20",
-        customerId: "300",
-        companyId: "cmp-1",
-        status: "active",
-        defaultCompanyAddressId: null,
-      },
-    ],
-    addresses: [
-      {
-        id: "addr-a",
-        companyId: "cmp-1",
-        addressType: "delivery",
-        label: "A",
-        line1: "A road",
-        line2: null,
-        postalCode: "1000",
-        city: "Oslo",
-        country: "NO",
-        source: "dashboard",
-        createdByMemberId: "m-20",
-        createdAt: new Date("2026-04-09T10:00:00.000Z").toISOString(),
-        updatedAt: new Date("2026-04-09T10:00:00.000Z").toISOString(),
-      },
-      {
-        id: "addr-b",
-        companyId: "cmp-1",
-        addressType: "delivery",
-        label: "B",
-        line1: "B road",
-        line2: null,
-        postalCode: "1001",
-        city: "Oslo",
-        country: "NO",
-        source: "dashboard",
-        createdByMemberId: "m-20",
-        createdAt: new Date("2026-04-09T11:00:00.000Z").toISOString(),
-        updatedAt: new Date("2026-04-09T11:00:00.000Z").toISOString(),
-      },
-    ],
-  });
-
-  const first = await harness.service.setDefault({
-    companyId: "cmp-1",
-    customerId: "300",
-    addressId: "addr-a",
-  });
-  assert.equal(first.myDefaultAddressId, "addr-a");
-
-  const second = await harness.service.setDefault({
-    companyId: "cmp-1",
-    customerId: "300",
-    addressId: "addr-b",
-  });
-  assert.equal(second.myDefaultAddressId, "addr-b");
-
-  const unset = await harness.service.unsetDefault({
-    companyId: "cmp-1",
-    customerId: "300",
-  });
-  assert.equal(unset.myDefaultAddressId, null);
-});
-
-test("enforces same-company invariant for default pointer", async () => {
-  const harness = createHarness({
-    memberships: [
-      {
-        id: "m-30",
-        customerId: "400",
-        companyId: "cmp-1",
-        status: "active",
-        defaultCompanyAddressId: null,
-      },
-    ],
-    addresses: [
-      {
-        id: "addr-other-company",
-        companyId: "cmp-2",
-        addressType: "delivery",
-        label: null,
-        line1: "Elsewhere 1",
-        line2: null,
-        postalCode: "2000",
-        city: "Bergen",
-        country: "NO",
-        source: "dashboard",
-        createdByMemberId: "m-other",
-        createdAt: new Date("2026-04-09T09:00:00.000Z").toISOString(),
-        updatedAt: new Date("2026-04-09T09:00:00.000Z").toISOString(),
-      },
-    ],
-  });
-
-  await assert.rejects(
-    () =>
-      harness.service.setDefault({
-        companyId: "cmp-1",
-        customerId: "400",
-        addressId: "addr-other-company",
-      }),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, "RESOURCE_NOT_FOUND");
-      return true;
-    },
-  );
 });

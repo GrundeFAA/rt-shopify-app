@@ -139,12 +139,10 @@ export type CompanySharedAddress = {
 
 export type CompanyAddressesResponse = {
   addresses: CompanySharedAddress[];
-  myDefaultAddressId: string | null;
 };
 
 export type CreateCompanyAddressResponse = {
   address: CompanySharedAddress;
-  myDefaultAddressId: string | null;
   syncIntentId: string;
 };
 
@@ -156,14 +154,6 @@ export type UpdateCompanyAddressResponse = {
 export type DeleteCompanyAddressResponse = {
   deletedAddressId: string;
   syncIntentId: string;
-};
-
-export type SetDefaultCompanyAddressResponse = {
-  myDefaultAddressId: string;
-};
-
-export type UnsetDefaultCompanyAddressResponse = {
-  myDefaultAddressId: null;
 };
 
 export type DashboardUserRow = {

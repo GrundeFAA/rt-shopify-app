@@ -143,7 +143,6 @@ export async function createCompanyAddress(
       city: string;
       country: string;
     };
-    setAsMyDefault: boolean;
   },
   authToken: string | null,
 ): Promise<Response> {
@@ -181,23 +180,6 @@ export async function deleteCompanyAddress(
 ): Promise<Response> {
   return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}`, {
     method: "DELETE",
-    headers: createApiHeaders(authToken),
-  });
-}
-
-export async function setMyDefaultCompanyAddress(
-  addressId: string,
-  authToken: string | null,
-): Promise<Response> {
-  return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}/set-default`, {
-    method: "POST",
-    headers: createApiHeaders(authToken),
-  });
-}
-
-export async function unsetMyDefaultCompanyAddress(authToken: string | null): Promise<Response> {
-  return fetch("/api/company/addresses/unset-default", {
-    method: "POST",
     headers: createApiHeaders(authToken),
   });
 }

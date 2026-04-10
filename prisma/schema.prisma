@@ -51,15 +51,12 @@ model CompanyMembership {
   companyId  String
   role       String
   status     String
-  defaultCompanyAddressId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   company    CompanyProfile @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
-  defaultCompanyAddress CompanySharedAddress? @relation(fields: [defaultCompanyAddressId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
-  @@index([defaultCompanyAddressId])
 }
 
 model CompanySharedAddress {
@@ -78,7 +75,6 @@ model CompanySharedAddress {
   updatedAt         DateTime @updatedAt
 
   company           CompanyProfile          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
-  membershipsUsingAsDefault CompanyMembership[]
   syncIntents       CompanyAddressSyncIntent[]
 
   @@index([companyId])

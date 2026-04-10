@@ -5,8 +5,6 @@ import {
   deleteCompanyAddress,
   parseJsonResponse,
   readErrorContract,
-  setMyDefaultCompanyAddress,
-  unsetMyDefaultCompanyAddress,
   updateCompanyAddress,
 } from "../dashboard-api";
 import { toDashboardFrontendState } from "../error-state";
@@ -15,8 +13,6 @@ import type {
   CompanySharedAddress,
   CreateCompanyAddressResponse,
   DeleteCompanyAddressResponse,
-  SetDefaultCompanyAddressResponse,
-  UnsetDefaultCompanyAddressResponse,
   UpdateCompanyAddressResponse,
 } from "../dashboard.types";
 import type { ApiErrorContract, DashboardErrorState } from "../error-state";
@@ -35,7 +31,6 @@ type AddressFormState = {
   postalCode: string;
   city: string;
   country: string;
-  setAsMyDefault: boolean;
 };
 
 const EMPTY_FORM: AddressFormState = {
@@ -45,7 +40,6 @@ const EMPTY_FORM: AddressFormState = {
   postalCode: "",
   city: "",
   country: "NO",
-  setAsMyDefault: false,
 };
 
 function toEditableForm(address: CompanySharedAddress): AddressFormState {
@@ -56,7 +50,6 @@ function toEditableForm(address: CompanySharedAddress): AddressFormState {
     postalCode: address.postalCode,
     city: address.city,
     country: address.country,
-    setAsMyDefault: false,
   };
 }
 
@@ -87,21 +80,17 @@ export function SharedDeliveryAddressesSection({
   onRuntimeError,
 }: SharedDeliveryAddressesSectionProps) {
   const [rows, setRows] = useState<CompanySharedAddress[]>(initialData.addresses);
-  const [myDefaultAddressId, setMyDefaultAddressId] = useState<string | null>(
-    initialData.myDefaultAddressId,
-  );
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<AddressFormState>(EMPTY_FORM);
   const [editAddress, setEditAddress] = useState<CompanySharedAddress | null>(null);
   const [editForm, setEditForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
-  const [defaultUpdatingId, setDefaultUpdatingId] = useState<string | null>(null);
 
   const inactiveHint = useMemo(() => {
     if (canMutate) {
       return null;
     }
-    return "Du må ha aktivt medlemskap for å legge til, endre eller sette personlig standardadresse.";
+    return "Du må ha aktivt medlemskap for å legge til eller endre leveringsadresser.";
   }, [canMutate]);
 
   const handleApiError = async (response: Response) => {
@@ -119,7 +108,6 @@ export function SharedDeliveryAddressesSection({
     const response = await createCompanyAddress(
       {
         address: buildAddressPayload(createForm),
-        setAsMyDefault: createForm.setAsMyDefault,
       },
       authToken,
     );
@@ -131,7 +119,6 @@ export function SharedDeliveryAddressesSection({
 
     const payload = await parseJsonResponse<CreateCompanyAddressResponse>(response);
     setRows((previous) => [payload.address, ...previous]);
-    setMyDefaultAddressId(payload.myDefaultAddressId);
     setCreateOpen(false);
     setCreateForm(EMPTY_FORM);
     setIsSaving(false);
@@ -179,69 +166,19 @@ export function SharedDeliveryAddressesSection({
 
     const payload = await parseJsonResponse<DeleteCompanyAddressResponse>(response);
     setRows((previous) => previous.filter((row) => row.id !== payload.deletedAddressId));
-    if (myDefaultAddressId === payload.deletedAddressId) {
-      setMyDefaultAddressId(null);
-    }
     setEditAddress(null);
     setEditForm(EMPTY_FORM);
     setIsSaving(false);
-  };
-
-  const onToggleDefault = async (addressId: string, checked: boolean) => {
-    if (!canMutate) {
-      return;
-    }
-
-    setDefaultUpdatingId(addressId);
-    if (checked) {
-      const response = await setMyDefaultCompanyAddress(addressId, authToken);
-      if (!response.ok) {
-        await handleApiError(response);
-        setDefaultUpdatingId(null);
-        return;
-      }
-
-      const payload = await parseJsonResponse<SetDefaultCompanyAddressResponse>(response);
-      setMyDefaultAddressId(payload.myDefaultAddressId);
-      setDefaultUpdatingId(null);
-      return;
-    }
-
-    const response = await unsetMyDefaultCompanyAddress(authToken);
-    if (!response.ok) {
-      await handleApiError(response);
-      setDefaultUpdatingId(null);
-      return;
-    }
-
-    await parseJsonResponse<UnsetDefaultCompanyAddressResponse>(response);
-    setMyDefaultAddressId(null);
-    setDefaultUpdatingId(null);
   };
 
   return (
     <>
       <DashboardTable
         title="Leveringsadresser"
-        description="Felles leveringsadresser for firmaet. Standardadresse er personlig per bruker."
+        description="Felles leveringsadresser for firmaet. Postadressen er alltid standardadresse i Shopify."
         embedded
         rows={rows}
         columns={[
-          {
-            key: "default",
-            header: "Min standard",
-            className: "w-28",
-            renderCell: (row: CompanySharedAddress) => (
-              <input
-                type="checkbox"
-                checked={myDefaultAddressId === row.id}
-                disabled={!canMutate || defaultUpdatingId === row.id}
-                onChange={(event) => void onToggleDefault(row.id, event.target.checked)}
-                aria-label={`Sett ${row.label ?? row.line1} som min standardadresse`}
-                className="size-4 rounded border-[var(--bk-color-border-default)] text-[var(--bk-color-accent-primary)] focus:ring-[var(--bk-color-accent-secondary)]"
-              />
-            ),
-          },
           {
             key: "label",
             header: "Navn",
@@ -382,21 +319,6 @@ export function SharedDeliveryAddressesSection({
                 />
               </label>
             </div>
-
-            <label className="inline-flex items-center gap-3 text-sm text-[var(--bk-color-text-primary)]">
-              <input
-                type="checkbox"
-                checked={createForm.setAsMyDefault}
-                onChange={(event) =>
-                  setCreateForm((previous) => ({
-                    ...previous,
-                    setAsMyDefault: event.target.checked,
-                  }))
-                }
-                className="size-4 rounded border-[var(--bk-color-border-default)] text-[var(--bk-color-accent-primary)] focus:ring-[var(--bk-color-accent-secondary)]"
-              />
-              Sett som min personlige standardadresse
-            </label>
           </div>
           <div className="mt-6 flex flex-col-reverse gap-2 border-t border-[var(--bk-color-border-default)] pt-4 sm:flex-row sm:justify-end">
             <button

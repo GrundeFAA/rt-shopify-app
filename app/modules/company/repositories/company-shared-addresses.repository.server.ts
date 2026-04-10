@@ -13,7 +13,6 @@ export type CompanyMembershipActorRecord = {
   customerId: string;
   companyId: string;
   status: CompanyMembershipStatus;
-  defaultCompanyAddressId: string | null;
 };
 
 export type CompanySharedAddressRecord = {
@@ -160,7 +159,6 @@ export class CompanySharedAddressesRepository {
         customerId: true,
         companyId: true,
         status: true,
-        defaultCompanyAddressId: true,
       },
     });
     if (!membership) {
@@ -172,7 +170,6 @@ export class CompanySharedAddressesRepository {
       customerId: membership.customerId,
       companyId: membership.companyId,
       status: normalizeMembershipStatus(membership.status),
-      defaultCompanyAddressId: membership.defaultCompanyAddressId,
     };
   }
 
@@ -404,22 +401,11 @@ export class CompanySharedAddressesRepository {
 
   async createWithSyncIntent(input: {
     companyId: string;
-    actorCustomerId: string;
     actorMembershipId: string;
     address: CompanySharedAddressInput;
-    setAsMyDefault: boolean;
     syncEligibleCustomerIds: string[];
-  }): Promise<{ address: CompanySharedAddressRecord; myDefaultAddressId: string | null; syncIntentId: string }> {
+  }): Promise<{ address: CompanySharedAddressRecord; syncIntentId: string }> {
     return this.prisma.$transaction(async (tx) => {
-      const actorMembershipBefore = await tx.companyMembership.findUnique({
-        where: {
-          customerId: input.actorCustomerId,
-        },
-        select: {
-          defaultCompanyAddressId: true,
-        },
-      });
-
       const created = await tx.companySharedAddress.create({
         data: {
           companyId: input.companyId,
@@ -435,18 +421,6 @@ export class CompanySharedAddressesRepository {
         },
       });
 
-      if (input.setAsMyDefault) {
-        await tx.companyMembership.updateMany({
-          where: {
-            companyId: input.companyId,
-            customerId: input.actorCustomerId,
-          },
-          data: {
-            defaultCompanyAddressId: created.id,
-          },
-        });
-      }
-
       const intent = await tx.companyAddressSyncIntent.create({
         data: {
           companyId: input.companyId,
@@ -460,25 +434,13 @@ export class CompanySharedAddressesRepository {
             rollback: {
               kind: "create",
               createdAddressId: created.id,
-              actorCustomerId: input.actorCustomerId,
-              previousDefaultAddressId: actorMembershipBefore?.defaultCompanyAddressId ?? null,
             },
           },
         },
       });
 
-      const membership = await tx.companyMembership.findUnique({
-        where: {
-          customerId: input.actorCustomerId,
-        },
-        select: {
-          defaultCompanyAddressId: true,
-        },
-      });
-
       return {
         address: mapAddressRecord(created),
-        myDefaultAddressId: membership?.defaultCompanyAddressId ?? null,
         syncIntentId: intent.id,
       };
     });
@@ -570,26 +532,6 @@ export class CompanySharedAddressesRepository {
         return null;
       }
 
-      const membersUsingDeletedAsDefault = await tx.companyMembership.findMany({
-        where: {
-          companyId: input.companyId,
-          defaultCompanyAddressId: existing.id,
-        },
-        select: {
-          customerId: true,
-        },
-      });
-
-      await tx.companyMembership.updateMany({
-        where: {
-          companyId: input.companyId,
-          defaultCompanyAddressId: existing.id,
-        },
-        data: {
-          defaultCompanyAddressId: null,
-        },
-      });
-
       await tx.companySharedAddress.delete({
         where: { id: existing.id },
       });
@@ -621,7 +563,6 @@ export class CompanySharedAddressesRepository {
                 createdAt: existing.createdAt.toISOString(),
                 updatedAt: existing.updatedAt.toISOString(),
               },
-              clearedDefaultCustomerIds: membersUsingDeletedAsDefault.map((member) => member.customerId),
             },
           },
         },
@@ -632,49 +573,6 @@ export class CompanySharedAddressesRepository {
         syncIntentId: intent.id,
       };
     });
-  }
-
-  async setDefaultAddress(input: {
-    companyId: string;
-    customerId: string;
-    addressId: string;
-  }): Promise<string | null> {
-    const updated = await this.prisma.companyMembership.updateMany({
-      where: {
-        companyId: input.companyId,
-        customerId: input.customerId,
-      },
-      data: {
-        defaultCompanyAddressId: input.addressId,
-      },
-    });
-    if (updated.count === 0) {
-      return null;
-    }
-
-    const membership = await this.prisma.companyMembership.findUnique({
-      where: {
-        customerId: input.customerId,
-      },
-      select: {
-        defaultCompanyAddressId: true,
-      },
-    });
-
-    return membership?.defaultCompanyAddressId ?? null;
-  }
-
-  async unsetDefaultAddress(input: { companyId: string; customerId: string }): Promise<boolean> {
-    const updated = await this.prisma.companyMembership.updateMany({
-      where: {
-        companyId: input.companyId,
-        customerId: input.customerId,
-      },
-      data: {
-        defaultCompanyAddressId: null,
-      },
-    });
-    return updated.count > 0;
   }
 
   async findSyncIntentById(intentId: string): Promise<CompanyAddressSyncIntentRecord | null> {
@@ -776,12 +674,7 @@ export class CompanySharedAddressesRepository {
     if (rollback.kind === "create") {
       const createdAddressId =
         typeof rollback.createdAddressId === "string" ? rollback.createdAddressId : null;
-      const actorCustomerId = typeof rollback.actorCustomerId === "string" ? rollback.actorCustomerId : null;
-      const previousDefaultAddressId =
-        typeof rollback.previousDefaultAddressId === "string" || rollback.previousDefaultAddressId === null
-          ? (rollback.previousDefaultAddressId as string | null)
-          : null;
-      if (!createdAddressId || !actorCustomerId) {
+      if (!createdAddressId) {
         return false;
       }
 
@@ -794,29 +687,10 @@ export class CompanySharedAddressesRepository {
           select: { id: true },
         });
         if (existingAddress) {
-          await tx.companyMembership.updateMany({
-            where: {
-              companyId: intent.companyId,
-              defaultCompanyAddressId: createdAddressId,
-            },
-            data: {
-              defaultCompanyAddressId: null,
-            },
-          });
           await tx.companySharedAddress.delete({
             where: { id: createdAddressId },
           });
         }
-
-        await tx.companyMembership.updateMany({
-          where: {
-            companyId: intent.companyId,
-            customerId: actorCustomerId,
-          },
-          data: {
-            defaultCompanyAddressId: previousDefaultAddressId,
-          },
-        });
       });
     } else if (rollback.kind === "update") {
       const previousAddress = toObjectRecord(rollback.previousAddress);
@@ -883,20 +757,6 @@ export class CompanySharedAddressesRepository {
           });
         }
 
-        const clearedDefaultCustomerIds = toStringArray(rollback.clearedDefaultCustomerIds);
-        if (clearedDefaultCustomerIds.length > 0) {
-          await tx.companyMembership.updateMany({
-            where: {
-              companyId: intent.companyId,
-              customerId: {
-                in: clearedDefaultCustomerIds,
-              },
-            },
-            data: {
-              defaultCompanyAddressId: deletedAddressId,
-            },
-          });
-        }
       });
     } else {
       return false;

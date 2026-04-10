@@ -17,7 +17,6 @@ function createHarness(input: {
         customerId: string;
         companyId: string;
         status: MembershipStatus;
-        defaultCompanyAddressId: string | null;
       }
     | null;
   existingKeys?: string[];
@@ -186,7 +185,6 @@ test("imports normalized/deduped addresses for active member and enqueues sync i
       customerId: "1001",
       companyId: "cmp-1",
       status: "active",
-      defaultCompanyAddressId: null,
     },
   });
 
@@ -236,7 +234,6 @@ test("returns no-op for pending membership and missing membership", async () => 
       customerId: "1002",
       companyId: "cmp-1",
       status: "pending_admin_approval",
-      defaultCompanyAddressId: null,
     },
   });
   const pendingResult = await pendingHarness.service.execute({
@@ -280,7 +277,6 @@ test("is idempotent for duplicate external addresses", async () => {
       customerId: "1003",
       companyId: "cmp-1",
       status: "inactive",
-      defaultCompanyAddressId: null,
     },
     existingKeys: [existingKey],
     companyAddress: {
@@ -328,7 +324,6 @@ test("enqueues reconcile when webhook payload is missing canonical addresses", a
       customerId: "1004",
       companyId: "cmp-1",
       status: "active",
-      defaultCompanyAddressId: null,
     },
     existingKeys: [["cmp-1", "street 9", "", "0009", "oslo", "no"].join("|")],
     canonicalSharedAddresses: [
@@ -387,7 +382,6 @@ test("skips reconcile when recent webhook reconcile exists", async () => {
         customerId: "1006",
         companyId: "cmp-1",
         status: "active",
-        defaultCompanyAddressId: null,
       } as const;
     },
     async listSyncEligibleCustomerIds() {
@@ -483,7 +477,6 @@ test("propagates retryable import failures for webhook retry behavior", async ()
           customerId: "2001",
           companyId: "cmp-2",
           status: "active",
-          defaultCompanyAddressId: null,
         } as const;
       },
       async listSyncEligibleCustomerIds() {
@@ -565,7 +558,6 @@ test("does not import canonical post address from webhook payload", async () => 
       customerId: "3001",
       companyId: "cmp-post",
       status: "active",
-      defaultCompanyAddressId: null,
     },
     companyAddress: {
       line1: "Post 100",
