@@ -26,7 +26,7 @@ The following must be executed sequentially under WP-2 before closing addresses:
 | ID | Gap package | Status | Notes |
 |---|---|---|---|
 | P3-G1-WP-2B-1 | `customers/update` webhook import trigger | `review` | Implemented subscription + route + service with eligible-status import, dedupe, canonical insert, and sync-intent enqueue; user reports live behavior looks correct, pending explicit close confirmation |
-| P3-G1-WP-2B-2 | Pending -> active clean-slate inherit hook | `todo` | On activation transition, delete Shopify addresses for the member and sync full canonical set |
+| P3-G1-WP-2B-2 | Pending -> active clean-slate inherit hook | `review` | Implemented activation command hook with fail-closed clean-slate sync for pending -> active transitions; pending live verification |
 | P3-G1-WP-2B-3 | Retry/reconciliation worker for sync intents | `todo` | Process failed/pending intents with baseline retry policy and deterministic observability |
 | P3-G1-WP-2B-4 | Spec/implementation alignment pass | `review` | Updated spec/architecture wording for canonical-first sync-intent model, compensation behavior, and recovery-sync semantics |
 
@@ -78,8 +78,16 @@ Each role updates only its own section.
   - run WP-2 (addresses) implementation and stop for user live verification
 
 ### Backend Platform Agent
-- Current package: `P3-G1-WP-2B-1 - customers/update webhook import trigger`
+- Current package: `P3-G1-WP-2B-2 - pending -> active clean-slate inherit hook`
 - Progress:
+  - added member activation endpoint `POST /api/company/members/:id/activate` for app-controlled transitions
+  - introduced `ActivateCompanyMemberService`:
+    - enforces active-admin authorization
+    - allows activation from `pending_user_acceptance`, `pending_admin_approval`, and `inactive`
+    - executes clean-slate address sync only for pending -> active transitions
+    - rolls membership status back to previous pending status when clean-slate sync fails
+  - reused existing sync-intent pipeline (no rewrite) via `enqueueActivationCleanSlateSyncIntent` + `ExecuteCompanyAddressSyncService`
+  - expanded auth membership status contract to include pending statuses for runtime parsing consistency
   - refactored route-level sync orchestration into dedicated application service:
     - `app/modules/company/services/execute-company-address-sync.service.ts`
     - centralizes sync execution, compensation/rollback, recovery sync, and `SYNC_WRITE_ABORTED` error contract
@@ -104,6 +112,12 @@ Each role updates only its own section.
     - sync-intent enqueue via existing `CompanyAddressSyncIntent` pipeline for each imported canonical address
   - extended address repository with idempotent import helper reusing existing sync-intent persistence model
 - Files changed:
+  - `app/routes/api.company.members.$id.activate.tsx`
+  - `app/modules/company/services/activate-company-member.service.ts`
+  - `app/modules/company/services/activate-company-member.service.test.ts`
+  - `app/modules/auth/repositories/company-membership.repository.server.ts`
+  - `app/contracts/auth.schema.ts`
+  - `app/routes/apps.dashboard.tsx`
   - `shopify.app.toml`
   - `app/routes/webhooks.customers.update.tsx`
   - `app/modules/webhooks/schemas/customers-update-address-import.schema.ts`
@@ -120,6 +134,7 @@ Each role updates only its own section.
 - Verification:
   - `npm run lint` passed
   - `npm run typecheck` passed
+  - focused tests passed: `npx --yes tsx --test app/modules/company/services/activate-company-member.service.test.ts`
   - focused tests passed: `npx --yes tsx --test app/modules/webhooks/services/process-customers-update-address-import.service.test.ts`
   - focused tests passed: `npx --yes tsx --test app/modules/company/services/execute-company-address-sync.service.test.ts`
   - focused tests passed: `npx --yes tsx --test app/modules/company/services/process-company-address-sync-intent.service.test.ts`

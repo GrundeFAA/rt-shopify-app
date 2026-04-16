@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { MembershipRoleSchema, MembershipStatusSchema } from "../contracts/auth.schema";
+import type { MembershipStatus } from "../contracts/auth.schema";
 import { AppError } from "../modules/auth/errors";
 import { resolveMembershipByCustomerId } from "../modules/auth/membership.server";
 import { verifyAppProxyRequest } from "../modules/auth/proxy.server";
@@ -97,7 +98,7 @@ function withQueryParam(urlValue: string, key: string, value: string): string {
 
 function getDevMembershipOverrides(request: Request): {
   role?: "administrator" | "user";
-  status?: "active" | "inactive";
+  status?: MembershipStatus;
 } {
   if (process.env.NODE_ENV === "production") {
     return {};

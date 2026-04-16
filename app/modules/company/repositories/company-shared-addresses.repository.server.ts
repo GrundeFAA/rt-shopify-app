@@ -366,6 +366,29 @@ export class CompanySharedAddressesRepository {
     };
   }
 
+  async enqueueActivationCleanSlateSyncIntent(input: {
+    companyId: string;
+    activatedCustomerId: string;
+  }): Promise<{ syncIntentId: string }> {
+    const intent = await this.prisma.companyAddressSyncIntent.create({
+      data: {
+        companyId: input.companyId,
+        companyAddressId: null,
+        operation: "ADDRESS_UPDATE",
+        status: "pending",
+        recipientCustomerIds: [input.activatedCustomerId],
+        payload: {
+          trigger: "membership_activation_clean_slate",
+          activatedCustomerId: input.activatedCustomerId,
+        },
+      },
+    });
+
+    return {
+      syncIntentId: intent.id,
+    };
+  }
+
   async hasRecentWebhookReconcileIntent(input: {
     companyId: string;
     triggeredByCustomerId: string;

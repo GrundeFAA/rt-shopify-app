@@ -164,6 +164,33 @@ export type DashboardUserRow = {
   status: "Aktiv" | "Inaktiv" | "Invitasjon sendt";
 };
 
+export type CompanyMember = {
+  id: string;
+  customerId: string;
+  companyId: string;
+  role: "administrator" | "user";
+  status: "active" | "inactive" | "pending_user_acceptance" | "pending_admin_approval";
+};
+
+export type CompanyMembersResponse = {
+  members: CompanyMember[];
+};
+
+export type ActivateCompanyMemberResponse = {
+  memberId: string;
+  customerId: string;
+  status: "active";
+  previousStatus: "inactive" | "pending_user_acceptance" | "pending_admin_approval";
+  cleanSlateSyncIntentId: string | null;
+};
+
+export type DeactivateCompanyMemberResponse = {
+  memberId: string;
+  customerId: string;
+  status: "inactive";
+  previousStatus: "active";
+};
+
 export type DashboardDeliveryAddressRow = {
   id: string;
   label: string;

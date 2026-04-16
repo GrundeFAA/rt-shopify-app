@@ -3,7 +3,12 @@ import { z } from "zod";
 export const MembershipRoleSchema = z.enum(["administrator", "user"]);
 export type MembershipRole = z.infer<typeof MembershipRoleSchema>;
 
-export const MembershipStatusSchema = z.enum(["active", "inactive"]);
+export const MembershipStatusSchema = z.enum([
+  "active",
+  "inactive",
+  "pending_user_acceptance",
+  "pending_admin_approval",
+]);
 export type MembershipStatus = z.infer<typeof MembershipStatusSchema>;
 
 export const ProxyParamsSchema = z.object({

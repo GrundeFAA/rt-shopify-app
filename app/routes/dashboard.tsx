@@ -10,6 +10,7 @@ import {
 import {
   createBootstrapHeaders,
   fetchCompanyAddresses,
+  fetchCompanyMembers,
   fetchCompanyOrders,
   makeRequestId,
   parseJsonResponse,
@@ -24,6 +25,7 @@ import dashboardTailwindHref from "../modules/dashboard/dashboard-tailwind.css?u
 import type {
   CompanyAddress,
   CompanyAddressesResponse,
+  CompanyMembersResponse,
   CompanyOrdersListResponse,
   CompanyProfile,
   DashboardSectionKey,
@@ -44,6 +46,7 @@ type LoaderData =
       profile: CompanyProfile;
       orders: CompanyOrdersListResponse;
       addresses: CompanyAddressesResponse;
+      members: CompanyMembersResponse;
       bootstrapToken: string | null;
     }
   | {
@@ -110,12 +113,25 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<LoaderDat
         };
       }
       const addresses = await parseJsonResponse<CompanyAddressesResponse>(addressesResponse);
+      let members: CompanyMembersResponse = { members: [] };
+      if (session.role === "administrator") {
+        const membersResponse = await fetchCompanyMembers(request, iframeSessionToken);
+        if (!membersResponse.ok) {
+          const error = await readErrorContract(membersResponse);
+          return {
+            state: toDashboardFrontendState(error),
+            error,
+          };
+        }
+        members = await parseJsonResponse<CompanyMembersResponse>(membersResponse);
+      }
       return {
         state: "ready",
         session,
         profile,
         orders,
         addresses,
+        members,
         bootstrapToken: iframeSessionToken,
       };
     }
@@ -295,7 +311,14 @@ export default function DashboardRoute() {
     }
 
     if (activeSection === "users_invites") {
-      return <UsersInvitesSection isAdministrator={data.session.role === "administrator"} />;
+      return (
+        <UsersInvitesSection
+          isAdministrator={data.session.role === "administrator"}
+          initialMembers={data.members}
+          authToken={authToken}
+          onRuntimeError={(payload) => setRuntimeError(payload)}
+        />
+      );
     }
 
     return (

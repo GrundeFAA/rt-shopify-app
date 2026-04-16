@@ -1,7 +1,19 @@
 import { useState } from "react";
 import { DashboardBadge, DashboardRowActionsMenu, DashboardTable } from "../components";
-import { SKELETON_USER_ROWS } from "../dashboard.constants";
-import type { DashboardUserRow } from "../dashboard.types";
+import {
+  activateCompanyMember,
+  deactivateCompanyMember,
+  parseJsonResponse,
+  readErrorContract,
+} from "../dashboard-api";
+import { toDashboardFrontendState } from "../error-state";
+import type { ApiErrorContract, DashboardErrorState } from "../error-state";
+import type {
+  ActivateCompanyMemberResponse,
+  CompanyMembersResponse,
+  DashboardUserRow,
+  DeactivateCompanyMemberResponse,
+} from "../dashboard.types";
 
 const USER_STATUS_VARIANT: Record<DashboardUserRow["status"], "success" | "warning" | "neutral"> = {
   Aktiv: "success",
@@ -11,15 +23,63 @@ const USER_STATUS_VARIANT: Record<DashboardUserRow["status"], "success" | "warni
 
 type UsersInvitesSectionProps = {
   isAdministrator: boolean;
+  initialMembers: CompanyMembersResponse;
+  authToken: string | null;
+  onRuntimeError: (payload: { state: DashboardErrorState; error: ApiErrorContract }) => void;
 };
 
-export function UsersInvitesSection({ isAdministrator }: UsersInvitesSectionProps) {
-  const [rows, setRows] = useState<DashboardUserRow[]>(SKELETON_USER_ROWS);
+function toUserRow(member: CompanyMembersResponse["members"][number]): DashboardUserRow {
+  const statusLabel =
+    member.status === "active" ? "Aktiv" : member.status === "inactive" ? "Inaktiv" : "Invitasjon sendt";
+  return {
+    id: member.id,
+    name: `Kunde ${member.customerId}`,
+    email: `customer:${member.customerId}`,
+    role: member.role === "administrator" ? "administrator" : "bruker",
+    status: statusLabel,
+  };
+}
 
-  const updateStatus = (userId: string, status: "Aktiv" | "Inaktiv") => {
+export function UsersInvitesSection({
+  isAdministrator,
+  initialMembers,
+  authToken,
+  onRuntimeError,
+}: UsersInvitesSectionProps) {
+  const [rows, setRows] = useState<DashboardUserRow[]>(initialMembers.members.map(toUserRow));
+  const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+
+  const handleApiError = async (response: Response) => {
+    const error = await readErrorContract(response);
+    onRuntimeError({ state: toDashboardFrontendState(error), error });
+  };
+
+  const activateMember = async (memberId: string) => {
+    setUpdatingMemberId(memberId);
+    const response = await activateCompanyMember(memberId, authToken);
+    if (!response.ok) {
+      await handleApiError(response);
+      setUpdatingMemberId(null);
+      return;
+    }
+    await parseJsonResponse<ActivateCompanyMemberResponse>(response);
+    setRows((previous) => previous.map((row) => (row.id === memberId ? { ...row, status: "Aktiv" } : row)));
+    setUpdatingMemberId(null);
+  };
+
+  const deactivateMember = async (memberId: string) => {
+    setUpdatingMemberId(memberId);
+    const response = await deactivateCompanyMember(memberId, authToken);
+    if (!response.ok) {
+      await handleApiError(response);
+      setUpdatingMemberId(null);
+      return;
+    }
+    await parseJsonResponse<DeactivateCompanyMemberResponse>(response);
     setRows((previous) =>
-      previous.map((row) => (row.id === userId ? { ...row, status } : row)),
+      previous.map((row) => (row.id === memberId ? { ...row, status: "Inaktiv" } : row)),
     );
+    setUpdatingMemberId(null);
   };
 
   const columns = [
@@ -60,13 +120,13 @@ export function UsersInvitesSection({ isAdministrator }: UsersInvitesSectionProp
                   items={[
                     {
                       label: "Sett aktiv",
-                      onClick: () => updateStatus(row.id, "Aktiv"),
-                      disabled: row.status === "Aktiv",
+                      onClick: () => void activateMember(row.id),
+                      disabled: row.status === "Aktiv" || updatingMemberId === row.id,
                     },
                     {
                       label: "Sett inaktiv",
-                      onClick: () => updateStatus(row.id, "Inaktiv"),
-                      disabled: row.status === "Inaktiv",
+                      onClick: () => void deactivateMember(row.id),
+                      disabled: row.status === "Inaktiv" || updatingMemberId === row.id,
                     },
                   ]}
                 />
@@ -80,7 +140,7 @@ export function UsersInvitesSection({ isAdministrator }: UsersInvitesSectionProp
   return (
     <DashboardTable
       title="Brukere"
-      description="Foreløpig struktur for firmabrukere og invitasjonshåndtering."
+      description="Administrer status for firmabrukere."
       embedded
       rows={rows}
       columns={columns}

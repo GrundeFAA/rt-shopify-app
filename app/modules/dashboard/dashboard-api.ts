@@ -123,6 +123,22 @@ export async function fetchCompanyAddresses(
   });
 }
 
+export async function fetchCompanyMembers(
+  request: Request,
+  iframeSessionToken: string | null,
+): Promise<Response> {
+  const headers = createBootstrapHeaders(request, iframeSessionToken);
+  const membersUrl = new URL("/api/company/members", request.url);
+  if (iframeSessionToken) {
+    membersUrl.searchParams.set("st", iframeSessionToken);
+  }
+
+  return fetch(membersUrl, {
+    method: "GET",
+    headers,
+  });
+}
+
 export async function fetchCompanyOrderDetail(
   orderId: string,
   authToken: string | null,
@@ -180,6 +196,26 @@ export async function deleteCompanyAddress(
 ): Promise<Response> {
   return fetch(`/api/company/addresses/${encodeURIComponent(addressId)}`, {
     method: "DELETE",
+    headers: createApiHeaders(authToken),
+  });
+}
+
+export async function activateCompanyMember(
+  memberId: string,
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/members/${encodeURIComponent(memberId)}/activate`, {
+    method: "POST",
+    headers: createApiHeaders(authToken),
+  });
+}
+
+export async function deactivateCompanyMember(
+  memberId: string,
+  authToken: string | null,
+): Promise<Response> {
+  return fetch(`/api/company/members/${encodeURIComponent(memberId)}/deactivate`, {
+    method: "POST",
     headers: createApiHeaders(authToken),
   });
 }
