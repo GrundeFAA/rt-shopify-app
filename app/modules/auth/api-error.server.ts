@@ -140,49 +140,6 @@ export function toApiErrorResponse(error: unknown, request: Request): Response {
   });
 }
 
-export function createSyncInProgressError(
-  message = "Synchronization is in progress.",
-  diagnostics?: {
-    upstreamCode?: string;
-    stage?: string;
-    retryable?: boolean;
-    shop?: string;
-    companyId?: string;
-    causeMessage?: string;
-    upstreamDetails?: Record<string, unknown>;
-  },
-): AppError {
-  const details: Record<string, unknown> = {
-    syncState: "sync_in_progress",
-  };
-
-  if (diagnostics?.upstreamCode) {
-    details.upstreamCode = diagnostics.upstreamCode;
-  }
-  if (diagnostics?.stage) {
-    details.stage = diagnostics.stage;
-  }
-  if (typeof diagnostics?.retryable === "boolean") {
-    details.retryable = diagnostics.retryable;
-  }
-  if (diagnostics?.shop) {
-    details.shop = diagnostics.shop;
-  }
-  if (diagnostics?.companyId) {
-    details.companyId = diagnostics.companyId;
-  }
-  if (diagnostics?.causeMessage) {
-    details.causeMessage = sanitizeErrorMessage(diagnostics.causeMessage);
-  }
-  if (diagnostics?.upstreamDetails && process.env.NODE_ENV !== "production") {
-    details.upstreamDetails = diagnostics.upstreamDetails;
-  }
-
-  return new AppError("SYNC_IN_PROGRESS", message, 409, false, {
-    ...details,
-  });
-}
-
 export function validationDetailsFromIssues(
   issues: z.ZodIssue[],
 ): Record<string, unknown> {

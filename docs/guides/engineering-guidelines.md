@@ -135,16 +135,6 @@ When a workflow requires no partial success between app DB and Shopify, follow t
    - Shopify compensation using snapshot
 4. Service returns success only on aligned final state.
 
-Code structure standard:
-- Shared core executor: `app/modules/sync/core/hard-sync-orchestrator.ts`
-- One operation file per aggregate/domain: for example `app/modules/company/services/company-profile-hard-sync.operation.ts`
-- Do not create one operation file per tiny field change; use typed mutation strategies in the aggregate operation.
-
-Error and stage rules:
-- `SYNC_STAGE_SHOPIFY_WRITE_FAILED`: fail, no app DB commit.
-- `SYNC_STAGE_DB_WRITE_FAILED`: compensation attempted; if compensation succeeds return `SYNC_WRITE_ABORTED`.
-- `SYNC_STAGE_COMPENSATION_FAILED`: return `SYNC_RECONCILIATION_MISMATCH`.
-
 ## Refactor Triggers
 Refactor before adding more features when any trigger is hit:
 - Repeated bug class appears in the same area twice.
