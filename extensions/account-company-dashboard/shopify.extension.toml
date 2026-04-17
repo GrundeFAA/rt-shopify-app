@@ -31,3 +31,12 @@ target = "customer-account.profile.company-location-staff.render-after"
 
 [extensions.capabilities]
 api_access = true
+network_access = true
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "app_base_url"
+type = "url"
+name = "App base URL"
+description = "Base URL for backend requests from the customer account extension."
+required = true

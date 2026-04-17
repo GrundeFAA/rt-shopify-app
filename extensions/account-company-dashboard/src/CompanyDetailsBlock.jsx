@@ -1,15 +1,17 @@
 import '@shopify/ui-extensions/preact';
 import {render} from "preact";
-import {useEffect, useMemo, useState} from "preact/hooks";
+import {useCallback, useEffect, useMemo, useState} from "preact/hooks";
 import {
   buildCompanyUsers,
   formatLocationAddress,
+  getMainLocation,
   validateOptionalEmail,
 } from "./utils/company-dashboard";
 import {
   loadCompanySettingsData,
   saveCompanySettings,
 } from "./services/company-settings.service";
+import {createCompanyLocation} from "./services/company-location-actions.service";
 
 export default async () => {
   render(<Extension />, document.body)
@@ -25,6 +27,7 @@ function Extension() {
   const [ehf, setEhf] = useState(false);
   const [invoiceEmail, setInvoiceEmail] = useState("");
   const [locations, setLocations] = useState([]);
+  const [mainLocationId, setMainLocationId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -32,57 +35,67 @@ function Extension() {
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [locationName, setLocationName] = useState("");
+  const [deliveryLine1, setDeliveryLine1] = useState("");
+  const [deliveryLine2, setDeliveryLine2] = useState("");
+  const [deliveryPostalCode, setDeliveryPostalCode] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [locationFormError, setLocationFormError] = useState("");
+  const [locationFormSuccess, setLocationFormSuccess] = useState("");
+  const [isCreatingLocation, setIsCreatingLocation] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState({});
+  const [selectedUserRoles, setSelectedUserRoles] = useState({});
+
+  const loadCompanySettings = useCallback(async () => {
+    if (!currentLocationId && !authenticatedCompanyId) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError("");
+    setSaveError("");
+    setSaveSuccess("");
+
+    try {
+      const data = await loadCompanySettingsData({
+        authenticatedCompanyId,
+        currentLocationId,
+        translate: shopify.i18n.translate,
+      });
+
+      setCompanyId(data.companyId);
+      setAdministratorIds(data.administratorIds);
+      setEhf(data.ehf);
+      setInvoiceEmail(data.invoiceEmail);
+      setLocations(data.locations);
+      setMainLocationId(data.mainLocationId || "");
+      setIsAdmin(data.isAdmin);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsLoadError"),
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authenticatedCompanyId, currentLocationId]);
 
   useEffect(() => {
     let isActive = true;
 
-    async function loadCompanySettings() {
-      if (!currentLocationId && !authenticatedCompanyId) {
+    loadCompanySettings().catch(() => {
+      if (isActive) {
+        setLoadError(shopify.i18n.translate("companySettingsLoadError"));
         setIsLoading(false);
-        return;
       }
-
-      setIsLoading(true);
-      setLoadError("");
-      setSaveError("");
-      setSaveSuccess("");
-
-      try {
-        const data = await loadCompanySettingsData({
-          authenticatedCompanyId,
-          currentLocationId,
-          translate: shopify.i18n.translate,
-        });
-
-        if (isActive) {
-          setCompanyId(data.companyId);
-          setAdministratorIds(data.administratorIds);
-          setEhf(data.ehf);
-          setInvoiceEmail(data.invoiceEmail);
-          setLocations(data.locations);
-          setIsAdmin(data.isAdmin);
-        }
-      } catch (error) {
-        if (isActive) {
-          setLoadError(
-            error instanceof Error && error.message
-              ? error.message
-              : shopify.i18n.translate("companySettingsLoadError"),
-          );
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadCompanySettings();
+    });
 
     return () => {
       isActive = false;
     };
-  }, [authenticatedCompanyId, currentLocationId]);
+  }, [loadCompanySettings]);
 
   function validateEmail(value) {
     return validateOptionalEmail(
@@ -95,6 +108,81 @@ function Extension() {
     () => buildCompanyUsers(locations, administratorIds, shopify.i18n.translate),
     [administratorIds, locations],
   );
+  const mainLocation = useMemo(
+    () => getMainLocation(locations, mainLocationId),
+    [locations, mainLocationId],
+  );
+
+  function toggleSelectedUser(userId, checked) {
+    setSelectedUserIds((currentValue) => ({
+      ...currentValue,
+      [userId]: checked,
+    }));
+    setSelectedUserRoles((currentValue) => ({
+      ...currentValue,
+      [userId]: currentValue[userId] || "buyer",
+    }));
+  }
+
+  async function handleCreateLocation() {
+    if (!companyId) {
+      setLocationFormError(shopify.i18n.translate("companySettingsMissingCompany"));
+      return;
+    }
+
+    if (!mainLocation) {
+      setLocationFormError(shopify.i18n.translate("companySettingsMainLocationMissing"));
+      return;
+    }
+
+    if (!locationName.trim() || !deliveryLine1.trim() || !deliveryPostalCode.trim() || !deliveryCity.trim()) {
+      setLocationFormError(shopify.i18n.translate("companySettingsLocationValidationError"));
+      return;
+    }
+
+    setIsCreatingLocation(true);
+    setLocationFormError("");
+    setLocationFormSuccess("");
+
+    try {
+      const selectedUsers = users
+        .filter((user) => selectedUserIds[user.id])
+        .map((user) => ({
+          customerId: user.id,
+          role: selectedUserRoles[user.id] || "buyer",
+        }));
+
+      await createCompanyLocation({
+        companyId,
+        locationName: locationName.trim(),
+        deliveryAddress: {
+          line1: deliveryLine1.trim(),
+          line2: deliveryLine2.trim(),
+          postalCode: deliveryPostalCode.trim(),
+          city: deliveryCity.trim(),
+        },
+        selectedUsers,
+      });
+
+      setLocationFormSuccess(shopify.i18n.translate("companySettingsLocationCreateSuccess"));
+      setLocationName("");
+      setDeliveryLine1("");
+      setDeliveryLine2("");
+      setDeliveryPostalCode("");
+      setDeliveryCity("");
+      setSelectedUserIds({});
+      setSelectedUserRoles({});
+      await loadCompanySettings();
+    } catch (error) {
+      setLocationFormError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsLocationCreateError"),
+      );
+    } finally {
+      setIsCreatingLocation(false);
+    }
+  }
 
   async function handleSave() {
     if (!companyId) {
@@ -195,7 +283,12 @@ function Extension() {
               {index > 0 ? <s-divider /> : null}
               <s-box padding="base">
                 <s-stack direction="block" gap="tight">
-                  <s-text>{location.name || shopify.i18n.translate("companySettingsLocationFallback")}</s-text>
+                  <s-text>
+                    {location.name || shopify.i18n.translate("companySettingsLocationFallback")}
+                    {mainLocation && mainLocation.id === location.id
+                      ? ` (${shopify.i18n.translate("companySettingsMainLocationLabel")})`
+                      : ""}
+                  </s-text>
                   <s-text>
                     {formatLocationAddress(location, shopify.i18n.translate)}
                   </s-text>
@@ -318,7 +411,89 @@ function Extension() {
         >
           <s-box padding="base">
             <s-stack direction="block" gap="base">
+              {locationFormError ? <s-banner tone="critical">{locationFormError}</s-banner> : null}
+              {locationFormSuccess ? <s-banner tone="success">{locationFormSuccess}</s-banner> : null}
+
               <s-text>{shopify.i18n.translate("companySettingsAddLocationBody")}</s-text>
+              <s-text>{shopify.i18n.translate("companySettingsMainLocationAddressLabel")}</s-text>
+              <s-text>
+                {mainLocation
+                  ? formatLocationAddress(mainLocation, shopify.i18n.translate)
+                  : shopify.i18n.translate("companySettingsMainLocationMissing")}
+              </s-text>
+
+              <s-text-field
+                label={shopify.i18n.translate("companySettingsNewLocationNameLabel")}
+                value={locationName}
+                onInput={(event) => setLocationName(event.currentTarget.value)}
+              />
+
+              <s-text-field
+                label={shopify.i18n.translate("companySettingsDeliveryAddressLine1")}
+                value={deliveryLine1}
+                onInput={(event) => setDeliveryLine1(event.currentTarget.value)}
+              />
+              <s-text-field
+                label={shopify.i18n.translate("companySettingsDeliveryAddressLine2")}
+                value={deliveryLine2}
+                onInput={(event) => setDeliveryLine2(event.currentTarget.value)}
+              />
+              <s-grid gridTemplateColumns="1fr 1fr">
+                <s-text-field
+                  label={shopify.i18n.translate("companySettingsDeliveryPostalCode")}
+                  value={deliveryPostalCode}
+                  onInput={(event) => setDeliveryPostalCode(event.currentTarget.value)}
+                />
+                <s-text-field
+                  label={shopify.i18n.translate("companySettingsDeliveryCity")}
+                  value={deliveryCity}
+                  onInput={(event) => setDeliveryCity(event.currentTarget.value)}
+                />
+              </s-grid>
+
+              <s-stack direction="block" gap="tight">
+                <s-text>{shopify.i18n.translate("companySettingsAssignUsersLabel")}</s-text>
+                {users.length === 0 ? (
+                  <s-text>{shopify.i18n.translate("companySettingsAssignUsersEmpty")}</s-text>
+                ) : (
+                  users.map((user) => (
+                    <s-box key={user.id} border="base" borderRadius="base" padding="base">
+                      <s-stack direction="block" gap="tight">
+                        <s-checkbox
+                          checked={Boolean(selectedUserIds[user.id])}
+                          label={`${user.name} (${user.email})`}
+                          onChange={(event) => toggleSelectedUser(user.id, event.currentTarget.checked)}
+                        />
+                        {selectedUserIds[user.id] ? (
+                          <s-select
+                            label={shopify.i18n.translate("companySettingsAssignRoleLabel")}
+                            value={selectedUserRoles[user.id] || "buyer"}
+                            onChange={(event) =>
+                              setSelectedUserRoles((currentValue) => ({
+                                ...currentValue,
+                                [user.id]: event.currentTarget.value,
+                              }))
+                            }
+                          >
+                            <s-option value="buyer">
+                              {shopify.i18n.translate("companySettingsRoleBuyer")}
+                            </s-option>
+                            <s-option value="admin">
+                              {shopify.i18n.translate("companySettingsRoleAdmin")}
+                            </s-option>
+                          </s-select>
+                        ) : null}
+                      </s-stack>
+                    </s-box>
+                  ))
+                )}
+              </s-stack>
+
+              <s-button disabled={isCreatingLocation} onClick={handleCreateLocation}>
+                {isCreatingLocation
+                  ? shopify.i18n.translate("companySettingsCreatingLocation")
+                  : shopify.i18n.translate("companySettingsCreateLocation")}
+              </s-button>
               <s-button command="--hide" commandFor="add-location-modal">
                 {shopify.i18n.translate("close")}
               </s-button>

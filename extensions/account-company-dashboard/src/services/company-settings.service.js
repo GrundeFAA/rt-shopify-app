@@ -20,6 +20,9 @@ const COMPANY_SETTINGS_QUERY = `#graphql
           }
           company {
             id
+            mainLocationId: metafield(namespace: "${METAFIELD_NAMESPACE}", key: "main_location_id") {
+              value
+            }
             administrators: metafield(namespace: "${METAFIELD_NAMESPACE}", key: "administrators") {
               id
               type
@@ -145,6 +148,7 @@ export async function loadCompanySettingsData({
     ehf: company.ehf?.value === "true",
     invoiceEmail: company.invoiceEmail?.value ?? "",
     isAdmin: administratorIds.some((administratorId) => idsMatch(administratorId, matchedCustomerId)),
+    mainLocationId: company.mainLocationId?.value ?? null,
     locations: company.locations?.nodes ?? [],
   };
 }

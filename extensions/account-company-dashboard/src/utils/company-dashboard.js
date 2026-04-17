@@ -66,6 +66,14 @@ export function formatLocationAddress(location, translate) {
   return parts.join(", ") || translate("companySettingsLocationNoAddress");
 }
 
+export function getMainLocation(locations, mainLocationId) {
+  return (
+    locations.find((location) => idsMatch(location?.id, mainLocationId)) ??
+    locations[0] ??
+    null
+  );
+}
+
 export function validateOptionalEmail(value, invalidMessage) {
   const trimmedValue = value.trim();
   if (!trimmedValue) {
