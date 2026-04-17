@@ -21,9 +21,10 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>RT Shopify App</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Sign in to the app shell while the new Shopify-native B2B
+          implementation is rebuilt.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -39,16 +40,16 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Lifecycle</strong>. Core app authentication and Shopify
+            lifecycle hooks remain in place.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Boilerplate</strong>. Temporary webhook and app proxy routes
+            are kept as rebuild anchors.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Extensions</strong>. Customer account extensions remain the
+            target surface for the B2B experience.
           </li>
         </ul>
       </div>

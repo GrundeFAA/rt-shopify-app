@@ -59,21 +59,6 @@ PROXY_MAX_AGE_SECONDS=300
 
 
 # ---------------------------------------
-# Temporary MVP auth mapping (dev-only)
-# ---------------------------------------
-# Temporary membership resolver input (used by app/modules/auth/membership.server.ts)
-# JSON object keyed by Shopify customer id:
-# {
-#   "1234567890": {
-#     "companyId": "cmp_001",
-#     "role": "administrator",
-#     "status": "active"
-#   }
-# }
-AUTH_MEMBERSHIP_MAP={}
-
-
-# ---------------------------------------
 # Prisma / platform compatibility (optional)
 # ---------------------------------------
 # Optional workaround for Prisma engine/runtime compatibility on some Windows ARM setups.
