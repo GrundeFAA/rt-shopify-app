@@ -7,7 +7,7 @@ This directory documents the current Shopify-native app baseline.
 - customer account UI extensions for customer-facing company UX
 - Shopify B2B entities and metafields as the source of truth for company data
 - Shopify Admin API and webhooks for server-side integrations
-- app proxy support only where a storefront/cart-context bridge is still needed
+- app proxy support for storefront registration and other public app-backed flows
 - Prisma only for app runtime/session persistence
 
 ## What to trust

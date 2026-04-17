@@ -1,12 +1,12 @@
-import { ProxyParamsSchema } from "../../contracts/auth.schema";
+import { ProxyParamsSchema, PublicProxyParamsSchema } from "../../contracts/auth.schema";
 import { createSha256HmacHex, timingSafeHexEqual } from "../../shared/security/hmac.server";
 import { AppError } from "./errors";
 
-type VerifiedProxyContext = {
-  customerId: string;
+type VerifiedPublicProxyContext = {
   shop: string;
   timestamp: number;
   rawParams: URLSearchParams;
+  customerId?: string;
 };
 
 const DEFAULT_PROXY_MAX_AGE_SECONDS = 300;
@@ -24,7 +24,7 @@ function toSortedProxyPayload(searchParams: URLSearchParams): string {
   return entries.join("");
 }
 
-export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
+function verifySignedAppProxyRequest(request: Request): VerifiedPublicProxyContext {
   const url = new URL(request.url);
   const signature = url.searchParams.get("signature");
 
@@ -37,7 +37,7 @@ export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
     );
   }
 
-  const parseResult = ProxyParamsSchema.safeParse({
+  const parseResult = PublicProxyParamsSchema.safeParse({
     signature,
     shop: url.searchParams.get("shop"),
     timestamp: url.searchParams.get("timestamp"),
@@ -46,8 +46,8 @@ export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
 
   if (!parseResult.success) {
     throw new AppError(
-      "AUTH_MISSING_CUSTOMER_CONTEXT",
-      "Missing authenticated customer context.",
+      "AUTH_INVALID_PROXY_SIGNATURE",
+      "Missing or invalid proxy request context.",
       401,
       false,
     );
@@ -86,9 +86,39 @@ export function verifyAppProxyRequest(request: Request): VerifiedProxyContext {
   }
 
   return {
-    customerId: parseResult.data.logged_in_customer_id,
     shop: parseResult.data.shop,
     timestamp: parseResult.data.timestamp,
     rawParams: url.searchParams,
+    customerId: parseResult.data.logged_in_customer_id ?? undefined,
+  };
+}
+
+export function verifyPublicAppProxyRequest(request: Request): VerifiedPublicProxyContext {
+  return verifySignedAppProxyRequest(request);
+}
+
+export function verifyAppProxyRequest(
+  request: Request,
+): VerifiedPublicProxyContext & { customerId: string } {
+  const proxyContext = verifySignedAppProxyRequest(request);
+  const parseResult = ProxyParamsSchema.safeParse({
+    signature: proxyContext.rawParams.get("signature"),
+    shop: proxyContext.shop,
+    timestamp: proxyContext.timestamp,
+    logged_in_customer_id: proxyContext.customerId,
+  });
+
+  if (!parseResult.success) {
+    throw new AppError(
+      "AUTH_MISSING_CUSTOMER_CONTEXT",
+      "Missing authenticated customer context.",
+      401,
+      false,
+    );
+  }
+
+  return {
+    ...proxyContext,
+    customerId: parseResult.data.logged_in_customer_id,
   };
 }

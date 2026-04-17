@@ -6,8 +6,8 @@ This repo is being rebuilt around Shopify-native B2B functionality.
 
 - customer account UI extensions for the B2B account experience
 - Shopify-native B2B entities, roles, and metafields
-- webhook-based onboarding
-- app proxy cart context where still needed
+- app-backed onboarding routes for storefront registration
+- Shopify Admin API and webhooks for server-side orchestration
 
 ## Local development
 
@@ -19,10 +19,10 @@ npm run dev
 ## Important paths
 
 - `extensions/account-company-dashboard/` - customer account UI extension
-- `app/routes/webhooks.customers.create.tsx` - onboarding webhook entrypoint
-- `app/routes/api.b2b-proxy.cart-context.tsx` - storefront app proxy cart context
-- `app/modules/auth/` - membership and proxy validation
-- `app/modules/webhooks/` - onboarding webhook logic
+- `app/routes/api.b2b-proxy.register-company.tsx` - storefront registration app proxy
+- `app/modules/auth/` - API error and proxy validation helpers
+- `app/modules/onboarding/` - storefront onboarding payloads and orchestration
+- `app/modules/webhooks/` - webhook handlers
 
 ## Notes
 

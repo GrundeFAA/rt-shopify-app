@@ -1,19 +1,31 @@
 import type { ActionFunctionArgs } from "react-router";
+import { getOrCreateRequestId, toApiErrorResponse } from "../modules/auth/api-error.server";
+import { maybeWebhookAdminServiceContext } from "../modules/shopify/admin.server";
+import { processAppScopesUpdateWebhook } from "../modules/webhooks/services/process-app-scopes-update-webhook.service";
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { payload, topic, shop } = await authenticate.webhook(request);
-  const current =
-    payload && typeof payload === "object" && "current" in payload ? payload.current : undefined;
+  try {
+    const webhookContext = await authenticate.webhook(request);
+    const adminContext = maybeWebhookAdminServiceContext(webhookContext, request);
+    const requestId = adminContext?.requestId ?? getOrCreateRequestId(request);
 
-  console.log(
-    JSON.stringify({
-      event: "app_scopes_update_webhook_received",
-      topic,
-      shop,
-      current,
-    }),
-  );
+    await processAppScopesUpdateWebhook({
+      adminContext,
+      payload: webhookContext.payload,
+      requestId,
+      shop: webhookContext.shop,
+      topic: String(webhookContext.topic),
+      webhookId: webhookContext.webhookId,
+    });
 
-  return new Response();
+    return new Response(null, {
+      status: 200,
+      headers: {
+        "x-request-id": requestId,
+      },
+    });
+  } catch (error) {
+    return toApiErrorResponse(error, request);
+  }
 };
