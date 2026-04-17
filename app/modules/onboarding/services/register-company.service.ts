@@ -345,6 +345,7 @@ async function findLocationByTaxRegistrationId(
   context: AdminServiceContext,
   taxRegistrationId: string,
 ): Promise<ExistingCompanyLocationMatch | null> {
+  const normalizedTaxRegistrationId = normalizeOrganizationNumber(taxRegistrationId);
   let after: string | null | undefined = null;
 
   for (let page = 0; page < 10; page += 1) {
@@ -362,7 +363,8 @@ async function findLocationByTaxRegistrationId(
 
     const matchingLocation = data.companyLocations.nodes.find(
       (location: CompanyLocationLookupNode) =>
-        location.taxSettings?.taxRegistrationId === taxRegistrationId,
+        normalizeOrganizationNumber(location.taxSettings?.taxRegistrationId ?? "") ===
+        normalizedTaxRegistrationId,
     );
 
     if (matchingLocation) {
