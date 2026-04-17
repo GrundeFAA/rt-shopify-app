@@ -2,17 +2,14 @@ import '@shopify/ui-extensions/preact';
 import {render} from "preact";
 import {useEffect, useMemo, useState} from "preact/hooks";
 import {
-  COMPANY_SETTINGS_QUERY,
-  METAFIELD_NAMESPACE,
-  UPDATE_COMPANY_SETTINGS_MUTATION,
   buildCompanyUsers,
-  fetchCustomerAccountGraphql,
   formatLocationAddress,
-  getAdministratorIds,
-  getGraphqlErrorMessage,
-  idsMatch,
   validateOptionalEmail,
-} from "./company-dashboard.shared";
+} from "./utils/company-dashboard";
+import {
+  loadCompanySettingsData,
+  saveCompanySettings,
+} from "./services/company-settings.service";
 
 export default async () => {
   render(<Extension />, document.body)
@@ -51,41 +48,19 @@ function Extension() {
       setSaveSuccess("");
 
       try {
-        const {response, payload} = await fetchCustomerAccountGraphql(COMPANY_SETTINGS_QUERY);
-        const companyContacts = payload?.data?.customer?.companyContacts?.nodes ?? [];
-        const graphqlErrors = payload?.errors ?? [];
-        const matchedContact =
-          companyContacts.find((contact) =>
-            idsMatch(contact?.company?.id, authenticatedCompanyId),
-          ) ??
-          companyContacts.find((contact) =>
-            (contact?.locations?.nodes ?? []).some((location) => idsMatch(location?.id, currentLocationId)),
-          ) ??
-          companyContacts[0];
-        const company = matchedContact?.company;
-        const matchedCustomerId = matchedContact?.customer?.id;
-        const nextAdministratorIds = getAdministratorIds(company);
-
-        if (!response.ok || graphqlErrors.length > 0) {
-          throw new Error(
-            getGraphqlErrorMessage(
-              payload,
-              shopify.i18n.translate("companySettingsLoadError"),
-            ),
-          );
-        }
-
-        if (!company || !matchedCustomerId) {
-          throw new Error(shopify.i18n.translate("companySettingsMissingCompany"));
-        }
+        const data = await loadCompanySettingsData({
+          authenticatedCompanyId,
+          currentLocationId,
+          translate: shopify.i18n.translate,
+        });
 
         if (isActive) {
-          setCompanyId(company.id);
-          setAdministratorIds(nextAdministratorIds);
-          setEhf(company.ehf?.value === "true");
-          setInvoiceEmail(company.invoiceEmail?.value ?? "");
-          setLocations(company.locations?.nodes ?? []);
-          setIsAdmin(nextAdministratorIds.some((administratorId) => idsMatch(administratorId, matchedCustomerId)));
+          setCompanyId(data.companyId);
+          setAdministratorIds(data.administratorIds);
+          setEhf(data.ehf);
+          setInvoiceEmail(data.invoiceEmail);
+          setLocations(data.locations);
+          setIsAdmin(data.isAdmin);
         }
       } catch (error) {
         if (isActive) {
@@ -139,45 +114,12 @@ function Extension() {
     setIsSaving(true);
 
     try {
-      const metafields = [
-        {
-          namespace: METAFIELD_NAMESPACE,
-          key: "ehf",
-          ownerId: companyId,
-          type: "boolean",
-          value: String(ehf),
-        },
-      ];
-
-      const trimmedInvoiceEmail = invoiceEmail.trim();
-      if (trimmedInvoiceEmail) {
-        metafields.push({
-          namespace: METAFIELD_NAMESPACE,
-          key: "invoice_email",
-          ownerId: companyId,
-          type: "single_line_text_field",
-          value: trimmedInvoiceEmail,
-        });
-      }
-
-      const {response, payload} = await fetchCustomerAccountGraphql(
-        UPDATE_COMPANY_SETTINGS_MUTATION,
-        {metafields},
-      );
-      const mutationResult = payload?.data?.metafieldsSet;
-      const graphqlErrors = payload?.errors ?? [];
-      const userErrors = mutationResult?.userErrors ?? [];
-
-      if (!response.ok || graphqlErrors.length > 0 || userErrors.length > 0) {
-        throw new Error(
-          getGraphqlErrorMessage(
-            payload,
-            shopify.i18n.translate("companySettingsSaveError"),
-            ["metafieldsSet"],
-          ),
-        );
-      }
-
+      await saveCompanySettings({
+        companyId,
+        ehf,
+        invoiceEmail,
+        translate: shopify.i18n.translate,
+      });
       setSaveSuccess(shopify.i18n.translate("companySettingsSaveSuccess"));
     } catch (error) {
       setSaveError(

@@ -1,42 +1,7 @@
 import '@shopify/ui-extensions/preact';
 import {render} from "preact";
 import {useEffect, useMemo, useState} from "preact/hooks";
-import {
-  fetchCustomerAccountGraphql,
-  getGraphqlErrorMessage,
-} from "./company-dashboard.shared";
-const COMPANY_LOCATION_MEMBERS_QUERY = `#graphql
-  query CompanyLocationMembers($locationId: ID!) {
-    companyLocation(id: $locationId) {
-      id
-      contacts(first: 50) {
-        nodes {
-          id
-          title
-          customer {
-            id
-            firstName
-            lastName
-            emailAddress {
-              emailAddress
-            }
-          }
-        }
-      }
-      roleAssignments(first: 50) {
-        nodes {
-          contact {
-            id
-          }
-          role {
-            id
-            name
-          }
-        }
-      }
-    }
-  }
-`;
+import {loadCompanyLocationMembers} from "./services/company-location-members.service";
 
 export default async () => {
   render(<Extension />, document.body)
@@ -56,51 +21,9 @@ function Extension() {
       setErrorMessage("");
 
       try {
-        const {response, payload} = await fetchCustomerAccountGraphql(
-          COMPANY_LOCATION_MEMBERS_QUERY,
-          {locationId},
-        );
-        const companyLocation = payload?.data?.companyLocation;
-        const graphqlErrors = payload?.errors ?? [];
-
-        if (!response.ok || graphqlErrors.length > 0 || !companyLocation) {
-          throw new Error(
-            getGraphqlErrorMessage(
-              payload,
-              shopify.i18n.translate("memberLoadError"),
-            ),
-          );
-        }
-
-        const roleAssignments = companyLocation.roleAssignments?.nodes ?? [];
-        const contacts = companyLocation.contacts?.nodes ?? [];
-        const roleNamesByContactId = new Map();
-
-        for (const assignment of roleAssignments) {
-          const contactId = assignment?.contact?.id;
-          const roleName = assignment?.role?.name;
-          if (!contactId || !roleName) continue;
-
-          const existingRoleNames = roleNamesByContactId.get(contactId) ?? [];
-          existingRoleNames.push(roleName);
-          roleNamesByContactId.set(contactId, existingRoleNames);
-        }
-
-        const nextMembers = contacts.map((contact) => {
-          const customer = contact.customer;
-          const fullName = [customer?.firstName, customer?.lastName]
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-
-          return {
-            id: contact.id,
-            name: fullName || customer?.emailAddress?.emailAddress || shopify.i18n.translate("memberNameFallback"),
-            permission:
-              (roleNamesByContactId.get(contact.id) ?? []).join(", ") ||
-              shopify.i18n.translate("memberPermissionUnknown"),
-            email: customer?.emailAddress?.emailAddress || "-",
-          };
+        const nextMembers = await loadCompanyLocationMembers({
+          locationId,
+          translate: shopify.i18n.translate,
         });
 
         if (isActive) {
