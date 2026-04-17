@@ -1,26 +1,26 @@
-# Documentation Status
+# Documentation Index
 
-The old embedded-dashboard documentation set is being retired.
+This directory documents the current Shopify-native app baseline.
 
-This project has shifted to a Shopify-native B2B approach centered on:
+## Current architecture
 
-- customer account UI extensions
-- Shopify B2B entities and metafields
-- onboarding webhooks
-- app proxy cart context where still needed
+- customer account UI extensions for customer-facing company UX
+- Shopify B2B entities and metafields as the source of truth for company data
+- Shopify Admin API and webhooks for server-side integrations
+- app proxy support only where a storefront/cart-context bridge is still needed
+- Prisma only for app runtime/session persistence
 
-Many historical docs described the previous custom dashboard and API architecture and should no longer be treated as current.
-
-## What to trust right now
+## What to trust
 
 - live code in `app/`
 - live code in `extensions/account-company-dashboard/`
-- `docs/09-customer-onboarding-webhook-flow.md` for onboarding webhook behavior
-- focused new docs/specs added after the Shopify-native pivot
+- `docs/guides/engineering-guidelines.md`
+- `docs/guides/development-environment-setup.md`
+- `docs/runbooks/parallel-agent-delivery-model.md`
 
-## Guidance for new docs
+## Writing rules
 
-- Prefer purpose-based docs under `docs/guides/`, `docs/specs/`, `docs/runbooks/`, and `docs/adrs/`.
-- Do not recreate the old numbered dashboard baseline.
-- When documenting behavior, describe the Shopify-native approach directly instead of the removed iframe dashboard/API model.
+- Keep docs aligned with the current implementation, not planned legacy rebuilds.
+- Prefer purpose-based docs under `docs/guides/`, `docs/specs/`, and `docs/runbooks/`.
+- Reference Shopify-native flows directly instead of describing removed internal abstractions.
 

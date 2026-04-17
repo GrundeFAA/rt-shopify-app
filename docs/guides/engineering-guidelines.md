@@ -1,265 +1,172 @@
 # Engineering Guidelines and Codebase Structure
 
 ## Purpose
-This document defines how engineers structure code and make design decisions in this repository so we stay aligned, move fast, and avoid architectural drift.
+This document defines how engineers should structure code in the current Shopify-native app baseline.
 
-It complements these foundation docs:
-- `docs/01-company-dashboard-context.md`
-- `docs/03-auth-and-authorization-contract.md`
-- `docs/05-api-layer-backend-architecture.md`
-- `docs/06-error-handling-and-reliability.md`
-- `docs/07-validation-standard-zod.md`
-- `docs/08-company-dashboard-mvp-requirements.md`
-- `docs/09-customer-onboarding-webhook-flow.md`
-- `docs/specs/brand-kit.md` (frontend visual baseline for dashboard UI work)
+Use it to keep the repo aligned around a simple rule set:
 
-## Engineering Principles
-1. **Security first, fail closed**
-   - Never trust raw client identifiers for authorization.
-   - Auth and permission checks are enforced server-side.
+- Shopify owns company, location, contact, and metafield business data
+- customer-facing UI lives in customer account extensions first
+- server routes stay thin and delegate real logic into focused modules
+- app database usage is limited to runtime and session persistence unless an explicit architecture decision says otherwise
 
-2. **Separation of concerns over convenience**
-   - Route handlers, services, repositories, and gateways each have one responsibility.
-   - Do not blur boundaries to reduce short-term code duplication.
+## Architecture baseline
 
-3. **DRY, but only at the right level**
-   - Duplicate a small amount of code if shared abstraction would couple unrelated domains.
-   - Extract only when behavior is truly shared and stable.
+### Source of truth
+- Shopify is the source of truth for B2B company data.
+- Company settings, company users, locations, and related custom data should live on Shopify entities or Shopify-managed metafields.
+- Do not recreate a parallel business record model in the app database without an explicit architecture decision.
 
-4. **Locality over premature generalization**
-   - Keep logic close to the module that owns it.
-   - Introduce shared utilities only after at least two clear production use-cases.
+### Primary surfaces
+- `extensions/account-company-dashboard/` for customer account UX
+- `app/routes/webhooks.*` for Shopify webhooks
+- `app/routes/api.*` for app-owned HTTP endpoints such as app proxy handlers
+- `app/modules/*` for focused server-side logic
+- `app/shared/*` for generic reusable helpers only
 
-5. **Explicit contracts at boundaries**
-   - Validate all external input with zod.
-   - Use typed errors and the standard API error shape.
+## Engineering principles
+1. **Security first**
+   - Never trust client-provided identifiers for authorization.
+   - Enforce authorization server-side or through Shopify-managed surface constraints.
 
-6. **Single source of truth per field**
-   - Follow ownership rules for app DB vs Shopify-managed data.
-   - "Canonical source of truth" means authoritative target state, not allowance for partial success writes.
-   - Do not introduce hidden dual-write flows.
+2. **Thin edges, clear ownership**
+   - Routes parse requests and return responses.
+   - Module helpers and services own orchestration and business rules.
+   - Shared utilities stay generic and focused.
 
-## Required Layering Rules
-The required interaction pattern is:
+3. **Shopify-native by default**
+   - Reach for Shopify Admin API, Customer Account API, and metafields before inventing app-managed mirrors.
+   - Add app-owned persistence only when Shopify cannot be the durable owner of the needed state.
 
-`Route Handler -> Application Service -> (Repository + Shopify Gateway)`
+4. **Locality over abstraction**
+   - Keep logic close to the feature that owns it.
+   - Extract shared helpers only after multiple real call sites prove the API.
+
+5. **Explicit contracts**
+   - Validate external input at boundaries.
+   - Keep response and error shapes stable and easy to reason about.
+
+## Required layering rules
+The default interaction pattern is:
+
+`Route handler -> module helper/service -> external boundary`
+
+External boundaries include:
+- Shopify Admin API clients
+- Customer Account API helpers
+- app proxy verification helpers
+- Prisma and session persistence
 
 ### Route handlers
-- Validate request input, auth context, and token claims.
-- Perform coarse auth checks (authenticated + membership status).
-- Call exactly one application service per primary action.
-- Return response DTOs and map typed errors to standard API responses.
+- Validate request shape, auth context, and required identifiers.
+- Perform coarse access checks.
+- Delegate non-trivial use-cases to a focused module function.
+- Map result or error output back to HTTP responses.
 
-### Application services
-- Own use-case orchestration and transaction boundaries.
-- Enforce authoritative role/permission checks.
-- Coordinate repository writes, gateway calls, and outbox enqueueing.
-- Contain business decisions, not transport details.
+### Module helpers and services
+- Own orchestration and business decisions.
+- Hide transport details from route handlers when that improves clarity.
+- Keep side effects explicit and easy to test.
 
-### Repositories
-- App DB access only.
-- No Shopify API calls.
-- No orchestration logic.
-
-### Shopify gateways
-- Shopify API access only.
-- Normalize Shopify errors to typed dependency errors.
-- No direct app DB writes.
+### Shared helpers
+- Contain generic logic only.
+- Stay free of company-specific business rules.
+- Typical categories: security helpers, response helpers, formatting and parsing utilities.
 
 ### Forbidden patterns
-- Repository calling Shopify.
-- Gateway writing app DB.
-- Route handler orchestrating repository + gateway directly.
-- Business rules hidden in React components.
+- React components deciding authorization on their own.
+- Route handlers growing into multi-step business workflows.
+- Generic shared helpers that secretly encode one feature's business rules.
+- Reintroducing app-managed mirrors of Shopify business data by default.
 
-## DRY vs Separation of Concerns Decision Framework
-Use this checklist before extracting shared code:
-
-1. Is the repeated logic in the **same domain** and **same layer**?
-   - If no: do not share yet.
-2. Are there at least two real call sites with matching lifecycle and change cadence?
-   - If no: keep local.
-3. Would extraction reduce cognitive load (not just line count)?
-   - If no: keep local.
-4. Can the shared API be named clearly without domain leakage?
-   - If no: keep local.
-5. Do tests become simpler and more stable after extraction?
-   - If no: keep local.
-
-Default rule: prefer **small, intentional duplication** over a wrong abstraction.
-
-## When to Split Files
+## When to split files
 Split a file when one or more of these are true:
-- It has more than one reason to change (mixed responsibilities).
-- It mixes layers (for example route parsing + domain logic + persistence).
-- It is difficult to navigate in normal review (roughly >250-300 lines or multiple unrelated exports).
-- The file has 3+ top-level concepts (for example schema + mapper + service + formatter).
-- Test setup repeatedly mocks unrelated behavior from the same file.
+- it has more than one reason to change
+- it mixes transport, business logic, and persistence concerns
+- it is difficult to review without scrolling through unrelated exports
+- test setup must mock unrelated behavior from the same file repeatedly
 
-Do not split only to hit an arbitrary line limit if cohesion is still high.
+Do not split solely to satisfy an arbitrary line count.
 
-## Helper and Utility Rules
-### Module-local helpers (default)
-Create helper files inside the module when logic is:
-- Domain-specific (company/member/order onboarding semantics).
-- Used only by one module or use-case family.
-- Likely to evolve with that module.
+## Shared code rules
+### Module-local first
+Create helpers within a module when logic is:
+- domain-specific
+- used by one feature family
+- likely to evolve with that feature
 
-Example location:
-- `app/modules/company/helpers/*`
-- `app/modules/onboarding/helpers/*`
+### Promote to shared only when
+- at least two modules need it
+- the name is generic and honest
+- the helper does not depend on feature-specific assumptions
 
-### Shared helpers (strict)
-Promote to shared only when:
-- Used by at least two modules.
-- Free of domain-specific assumptions.
-- API is stable and naming is generic.
+Never place feature authorization logic in a generic shared utility.
 
-Allowed shared categories:
-- `app/shared/errors/*` (typed errors and mapping helpers)
-- `app/shared/result/*` (result wrappers if used)
-- `app/shared/dates/*` (pure date formatting/parsing utilities)
-- `app/shared/security/*` (signature/timing-safe helpers)
-
-Never place business authorization logic in shared generic utils.
-
-## Hard-Sync Implementation Method (DB + Shopify)
-When a workflow requires no partial success between app DB and Shopify, follow this method:
-
-1. Route handler validates/authenticates and calls one service.
-2. Service delegates to shared hard-sync orchestrator.
-3. Operation adapter (aggregate-level) defines:
-   - snapshot read
-   - Shopify write
-   - app DB write
-   - Shopify compensation using snapshot
-4. Service returns success only on aligned final state.
-
-## Refactor Triggers
-Refactor before adding more features when any trigger is hit:
-- Repeated bug class appears in the same area twice.
-- A use-case requires touching 4+ files across unrelated directories.
-- A service has grown into multiple independent workflows.
-- New feature requires bypassing architecture rules to fit.
-- Error handling is inconsistent with the standard taxonomy.
-- Validation is missing or duplicated inconsistently at boundaries.
-
-Refactor scope should be incremental:
-- First isolate behavior with tests.
-- Move one seam at a time (schema, mapper, service extraction).
-- Keep public contracts stable during refactor.
-
-## Target Folder Structure
-Adopt the following structure as the feature set grows:
+## Suggested folder structure
+Use the current repo shape as the baseline:
 
 ```text
 app/
-  routes/                                 # React Router route modules only
-    api.b2b-proxy.cart-context.tsx        # App proxy example
-    webhooks.customers.create.tsx         # Webhook example
+  routes/
+    api.*.tsx
+    webhooks.*.tsx
+    app*.tsx
 
   modules/
     auth/
-      repositories/
-      membership.server.ts
-      proxy.server.ts
-    company/
-      repositories/
-      services/
-      schemas.ts
     webhooks/
-      schemas/
-      services/
+    <feature>/
 
-  infrastructure/
+  contracts/
+  shared/
 
-  contracts/                              # cross-module zod contracts
-  shared/                                 # generic cross-module utilities only
+extensions/
+  account-company-dashboard/
 ```
 
 Notes:
-- Keep route files thin and move business logic into modules.
-- Keep domain ownership obvious from file path.
-- Avoid deep nesting beyond what improves discoverability.
+- Keep customer account UI in extensions unless there is a strong platform reason not to.
+- Keep route files thin and put reusable logic in `app/modules/`.
+- Prefer discoverable file paths over deep folder nesting.
 
-## Naming Conventions
-- Services: `<Verb><Entity>Service` (for example `GetDashboardSummaryService`)
-- Repositories: `<Entity>Repository`
-- Gateways: `Shopify<Entity>Gateway`
-- Schemas: follow `docs/07-validation-standard-zod.md`
-  - `<Action>InputSchema`
-  - `<Action>OutputSchema`
-  - `<Token>ClaimsSchema`
-- Route handlers should map to action/use-case names, not implementation details.
+## Naming conventions
+- Services and helpers: name by action and domain, for example `loadCompanySettings` or `processCustomerCreateWebhook`
+- Schemas: `<Action>InputSchema`, `<Action>PayloadSchema`, or similarly explicit names
+- Route handlers: map to real surfaces and actions, not internal implementation details
 
-## Validation and Error Standards (Mandatory)
-- Every external boundary uses zod validation.
-- Route handlers use `safeParse` and return `VALIDATION_FAILED` on invalid input.
-- Auth-shape failures map to auth error codes, not generic validation codes.
-- Services throw typed domain/dependency/internal errors only.
-- API responses follow the standard error shape (`code`, `message`, `requestId`, `retryable`, `details`).
+## Validation and error handling
+- Validate external input at boundaries.
+- Fail closed on auth or signature problems.
+- Use stable error codes and messages where consumers depend on them.
+- Keep error mapping centralized when multiple routes share the same behavior.
 
-## Frontend and UI Isolation Rules
-- Customer-facing account UI belongs in customer account extensions.
-- Avoid rebuilding a parallel iframe dashboard unless there is a clear platform gap.
-- React components must not perform authorization decisions; they consume authorized API results.
-- Customer-facing copy should match the live product language and surface.
+## Frontend rules
+- Customer-facing company UX belongs in customer account extensions first.
+- Embedded admin UI should exist only for true admin workflows that cannot live in the customer account surface.
+- UI components should render authorized data, not make authoritative permission decisions.
+- Model loading, empty, error, and success states explicitly.
 
-## Testing and Quality Gates
-Minimum expectations for all non-trivial changes:
-- Unit tests for new service logic and schema validation.
-- Integration tests for high-risk routes (auth, membership, onboarding, app proxy).
-- Idempotency tests for webhook processing where retries are expected.
-- Regression tests for changed contracts or ownership rules.
+## Testing and verification
+Minimum expectations for non-trivial changes:
+- targeted unit tests when business logic is extracted
+- route or integration coverage for risky webhook or app proxy behavior
+- manual verification in the dev store for extension UX changes
 
-Before merge:
+Before handoff or merge:
 - `npm run lint`
 - `npm run typecheck`
-- Relevant tests for changed modules
+- relevant tests for changed files or modules
 
-## Pull Request Checklist
+## Pull request checklist
 Each PR should answer:
-1. Which layer is changed and why?
-2. Are boundaries preserved (route/service/repository/gateway)?
-3. Is zod validation present at every affected boundary?
-4. Are typed errors mapped to standard API responses?
-5. Is data ownership (Shopify vs app DB) unchanged or explicitly updated?
-6. Is this extraction a real shared abstraction or premature DRY?
-7. What tests prove the behavior?
+1. What surface changed?
+2. Is Shopify still the source of truth for the affected business data?
+3. Are route boundaries still thin and clear?
+4. Is input validation present where data enters the app?
+5. Are new abstractions justified by more than one real use-case?
+6. What verification proves the behavior?
 
-## Tech Lead Assignment and Audit Expectations
-When work is delegated across roles, the Architect/Tech Lead must enforce these standards.
-
-### Work package prompt standard
-- Prompts must be implementation-specific, not generic.
-- Prompts must reference governing docs explicitly:
-  - architecture (`docs/05-api-layer-backend-architecture.md`)
-  - reliability (`docs/06-error-handling-and-reliability.md`)
-  - validation (`docs/07-validation-standard-zod.md`)
-  - MVP/spec docs relevant to the package
-- Prompts must state:
-  - exact in-scope tasks
-  - exact out-of-scope tasks
-  - required file/layer boundaries
-  - required tests and verification commands
-  - expected output format for handoff
-
-### Review/audit standard
-- Review must prioritize bug/risk discovery before summary.
-- Review must verify both:
-  - code correctness
-  - adherence to these engineering guidelines
-- Review must check for:
-  - broken layering boundaries
-  - hidden dual-write flows and ownership drift
-  - missing validation at boundaries
-  - incorrect typed error mapping
-  - missing or weak tests for changed behavior
-- Package is accepted only when required checks pass and no critical findings remain.
-
-## Team Working Agreement
-- Prefer clarity and explicitness over clever abstractions.
-- Keep module boundaries strict, especially around auth and sync.
-- Record meaningful architecture changes by updating docs in `docs/`.
-- If a change conflicts with these rules, raise it early in PR description and propose an explicit exception.
-
+## Team working agreement
+- Prefer explicit, boring code over clever indirection.
+- Document meaningful architecture changes in `docs/`.
+- If a change needs app-owned persistence beyond runtime or session state, call that out explicitly in the PR.

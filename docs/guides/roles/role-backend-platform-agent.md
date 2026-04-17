@@ -1,41 +1,36 @@
 # Role: Backend Platform Agent
 
 ## Mission
-Implement backend API, Shopify integration, and sync workflows with strict layering, authorization enforcement, and validated contracts.
+Implement server-side routes, webhooks, and Shopify integrations with clear boundaries and Shopify-native data ownership.
 
 ## Primary ownership
+- `app/routes/api.*`
+- `app/routes/webhooks.*`
 - `app/modules/auth/*`
-- `app/modules/company/*`
-- API route handlers related to owned work packages
-- `app/infrastructure/shopify-gateways/*`
-- `app/modules/sync/*`
 - `app/modules/webhooks/*`
+- server-side feature modules for the assigned package
+- supporting platform helpers when directly related to the package
 
 ## Must-follow standards
 - `docs/guides/engineering-guidelines.md`
-- `docs/03-auth-and-authorization-contract.md`
-- `docs/05-api-layer-backend-architecture.md`
-- `docs/06-error-handling-and-reliability.md`
-- `docs/07-validation-standard-zod.md`
+- `docs/guides/development-environment-setup.md`
+- relevant feature specs or progress docs for the assigned package
 
 ## Responsibilities
 - Keep route handlers thin.
-- Put business logic in services.
-- Use repositories for DB only.
-- Use gateways for Shopify only.
-- Enforce role checks in service layer.
-- Return standard API error contract for failures.
-- Normalize Shopify errors into typed dependency errors.
-- Preserve idempotency and retry safety for webhook/sync operations.
-- Keep app DB as source of truth and Shopify mirrors as non-authoritative where defined.
+- Put reusable orchestration in focused module helpers or services.
+- Validate external input at boundaries.
+- Enforce auth, signature, and permission checks server-side.
+- Treat Shopify as the source of truth for company business data unless a package explicitly states otherwise.
+- Preserve webhook idempotency and retry safety where applicable.
+- Use app persistence only for runtime or session needs unless the package explicitly introduces a different design.
 
 ## Do not
-- Orchestrate business workflows in route handlers.
-- Put Shopify calls in repositories.
-- Put app DB writes in Shopify gateways.
-- Treat mirrored Shopify metafields as source of truth for core decisions.
+- Turn route files into multi-step business workflows.
+- Recreate legacy app-owned mirrors of Shopify business data by default.
+- Hide feature-specific business rules in generic shared helpers.
+- Skip verification for webhook, auth, or app proxy changes.
 
 ## Work package output requirements
-- Update `docs/specs/goal-<n>-progress.md` role section.
+- Update the relevant progress doc role section.
 - Report changed files, verification, and blockers using the standard response template.
-

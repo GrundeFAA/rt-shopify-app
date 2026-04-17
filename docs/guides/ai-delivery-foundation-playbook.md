@@ -79,17 +79,17 @@ Must answer:
 - testing and merge quality gates
 
 ### 6) Role definitions
-- `docs/guides/roles/role-tech-lead.md`
-- `docs/guides/roles/role-backend.md`
-- `docs/guides/roles/role-frontend.md`
-- `docs/guides/roles/role-quality-devex.md`
+- `docs/guides/roles/role-architect-tech-lead.md`
+- `docs/guides/roles/role-backend-platform-agent.md`
+- `docs/guides/roles/role-frontend-embedded-agent.md`
+- `docs/guides/roles/role-quality-devex-agent.md`
 
 Must answer:
 - mission, responsibilities, and boundaries per role
 - acceptance criteria for role output
 
 ### 7) Orchestration runbook
-- `docs/runbooks/parallel-delivery-model.md`
+- `docs/runbooks/parallel-agent-delivery-model.md`
 
 Must answer:
 - how work is split, assigned, reviewed, and accepted
@@ -299,12 +299,12 @@ docs/
   guides/
     engineering-guidelines.md
     roles/
-      role-tech-lead.md
-      role-backend.md
-      role-frontend.md
-      role-quality-devex.md
+      role-architect-tech-lead.md
+      role-backend-platform-agent.md
+      role-frontend-embedded-agent.md
+      role-quality-devex-agent.md
   runbooks/
-    parallel-delivery-model.md
+    parallel-agent-delivery-model.md
   specs/
     goal-1-progress.md
     goal-2-progress.md
@@ -356,7 +356,7 @@ Progress requirements:
 - Update `docs/specs/goal-<n>-progress.md` with status, files, verification, blockers.
 
 Response requirements:
-- Use the standard response template from `docs/runbooks/parallel-delivery-model.md`.
+- Use the standard response template from `docs/runbooks/parallel-agent-delivery-model.md`.
 - If ownership conflict appears, return `BLOCKED`.
 ```
 

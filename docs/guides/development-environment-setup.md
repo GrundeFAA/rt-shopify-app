@@ -27,7 +27,7 @@ Provide a consistent, reproducible local setup for engineers working on this Sho
    - `npm run lint`
    - `npm run typecheck`
    - relevant tests for changed scope
-4. Verify behavior in dev store (auth/proxy/UI/webhook path as applicable).
+4. Verify behavior in the dev store or customer account preview as applicable.
 
 ## Shopify CLI local runtime assumptions
 `npm run dev` runs `shopify app dev`. The expected runtime model is:
@@ -42,7 +42,8 @@ Assumption guardrails:
 
 ## Verification checklist
 - App installs and opens from Shopify dev store flow.
-- Dashboard proxy route is reachable in local development.
+- Customer account extension changes render in the expected customer surface.
+- App proxy route is reachable in local development when that surface is under change.
 - Database is writable and migrations are applied.
 - Webhook endpoint is reachable in local runtime.
 - `npm run lint` succeeds.
