@@ -55,7 +55,34 @@ export const CompanyLocationSchema = z.object({
 export const CompanyLocationsResponseSchema = z.object({
   companyId: ShopifyIdSchema,
   companyName: z.string(),
+  mainLocationId: ShopifyIdSchema.nullable(),
   locations: z.array(CompanyLocationSchema),
+});
+
+export const CreateCompanyLocationAddressSchema = z.object({
+  line1: z.string().trim().min(1),
+  line2: z.string().trim().default(""),
+  postalCode: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  country: z.literal("NO").default("NO"),
+});
+
+export const CreateCompanyLocationAssignmentSchema = z.object({
+  customerId: ShopifyIdSchema,
+  role: z.enum(["admin", "buyer"]),
+});
+
+export const CreateCompanyLocationInputSchema = CompanyIdInputSchema.extend({
+  deliveryAddress: CreateCompanyLocationAddressSchema,
+  locationName: z.string().trim().min(1),
+  selectedUsers: z.array(CreateCompanyLocationAssignmentSchema),
+});
+
+export const CreateCompanyLocationResponseSchema = z.object({
+  companyId: ShopifyIdSchema,
+  companyLocationId: ShopifyIdSchema,
+  mainLocationId: ShopifyIdSchema,
+  locationName: z.string(),
 });
 
 export type CompanyIdInput = z.infer<typeof CompanyIdInputSchema>;
@@ -63,3 +90,5 @@ export type UpdateCompanySettingsInput = z.infer<typeof UpdateCompanySettingsInp
 export type CompanySettingsResponse = z.infer<typeof CompanySettingsResponseSchema>;
 export type CompanyUsersResponse = z.infer<typeof CompanyUsersResponseSchema>;
 export type CompanyLocationsResponse = z.infer<typeof CompanyLocationsResponseSchema>;
+export type CreateCompanyLocationInput = z.infer<typeof CreateCompanyLocationInputSchema>;
+export type CreateCompanyLocationResponse = z.infer<typeof CreateCompanyLocationResponseSchema>;

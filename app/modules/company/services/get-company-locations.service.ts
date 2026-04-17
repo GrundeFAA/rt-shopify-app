@@ -14,6 +14,12 @@ const CompanyLocationsDataSchema = z.object({
     .object({
       id: z.string(),
       name: z.string(),
+      mainLocationId: z
+        .object({
+          value: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
       locations: z.object({
         nodes: z.array(
           z.object({
@@ -61,6 +67,7 @@ export async function getCompanyLocations(
   return CompanyLocationsResponseSchema.parse({
     companyId: data.company.id,
     companyName: data.company.name,
+    mainLocationId: data.company.mainLocationId?.value ?? null,
     locations: data.company.locations.nodes.map((location) => ({
       id: location.id,
       name: location.name,

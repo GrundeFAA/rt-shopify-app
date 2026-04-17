@@ -2,6 +2,7 @@ import type {
   AdminApiContext,
   WebhookContext,
 } from "@shopify/shopify-app-react-router/server";
+import type { JwtPayload } from "@shopify/shopify-api";
 import type { Session } from "@shopify/shopify-api";
 import { z } from "zod";
 import { authenticate, unauthenticated } from "../../shopify.server";
@@ -23,6 +24,13 @@ export type AdminServiceContext = {
   requestId: string;
   source: "admin" | "webhook" | "offline";
   cors?: AuthenticatedAdminContext["cors"];
+};
+
+export type CustomerAccountServiceContext = {
+  cors: (response: Response) => Response;
+  requestId: string;
+  sessionToken: JwtPayload;
+  shop: string;
 };
 
 type GraphqlVariables = Record<string, unknown>;
@@ -87,6 +95,34 @@ export async function requireOfflineAdminServiceContext(
     getOrCreateRequestId(request),
     offlineContext,
   );
+}
+
+export async function requireCustomerAccountServiceContext(
+  request: Request,
+): Promise<CustomerAccountServiceContext> {
+  const publicContext = await authenticate.public.customerAccount(request, {
+    corsHeaders: ["x-request-id"],
+  });
+  const requestId = getOrCreateRequestId(request);
+  const destination = publicContext.sessionToken.dest;
+
+  if (!destination || typeof destination !== "string") {
+    throw new AppError(
+      "AUTH_FORBIDDEN",
+      "Missing customer account session destination.",
+      401,
+      false,
+    );
+  }
+
+  const shop = new URL(destination).host;
+
+  return {
+    cors: publicContext.cors,
+    requestId,
+    sessionToken: publicContext.sessionToken,
+    shop,
+  };
 }
 
 export function maybeWebhookAdminServiceContext(

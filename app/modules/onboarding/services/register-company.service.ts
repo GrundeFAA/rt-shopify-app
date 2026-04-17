@@ -602,6 +602,7 @@ async function syncCompanyMetafields(
   context: AdminServiceContext,
   company: CompanySummary,
   payload: RegisterCompanyPayload,
+  mainLocationId: string,
   customerId: string,
 ) {
   const administratorIds = [...new Set([...getAdministratorIds(company), customerId])];
@@ -628,6 +629,13 @@ async function syncCompanyMetafields(
           key: "invoice_email",
           type: "single_line_text_field",
           value: payload.company.invoice.email,
+        },
+        {
+          ownerId: company.id,
+          namespace: "custom",
+          key: "main_location_id",
+          type: "single_line_text_field",
+          value: mainLocationId,
         },
         {
           ownerId: company.id,
@@ -694,7 +702,7 @@ export async function registerCompany(
     companyContact.roleAssignments.nodes,
   );
 
-  await syncCompanyMetafields(context, company, payload, customer.id);
+  await syncCompanyMetafields(context, company, payload, location.id, customer.id);
 
   return RegisterCompanySuccessSchema.parse({
     ok: true,
