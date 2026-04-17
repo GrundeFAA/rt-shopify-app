@@ -52,8 +52,8 @@ Not permitted under quick-fix policy:
   - `app/modules/sync/*`
   - `app/modules/webhooks/*`
 - Frontend Embedded Agent:
-  - `app/routes/apps.dashboard*`
-  - iframe dashboard UI routes/components/styles
+  - `extensions/account-company-dashboard/*`
+  - customer account UI extension files and related UI behavior
 - Quality and DevEx Agent:
   - tests, test fixtures, reliability checks, verification docs
   - setup docs/scripts/tooling config (`package.json` scripts, local setup docs)

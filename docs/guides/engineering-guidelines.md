@@ -165,50 +165,23 @@ Adopt the following structure as the feature set grows:
 ```text
 app/
   routes/                                 # React Router route modules only
-    apps.dashboard.tsx                    # App proxy shell route example
-    api.company.members.tsx               # API route example
+    api.b2b-proxy.cart-context.tsx        # App proxy example
+    webhooks.customers.create.tsx         # Webhook example
 
   modules/
     auth/
-      services/
-      schemas.ts
-      permissions.ts
-      types.ts
-    company/
-      services/
       repositories/
-      mappers/
-      helpers/
-      schemas.ts
-      types.ts
-    dashboard/
-      services/
-      dto.ts
-      schemas.ts
-    onboarding/
+      membership.server.ts
+      proxy.server.ts
+    company/
+      repositories/
       services/
       schemas.ts
-      note-parser.ts
     webhooks/
-      handlers/
       schemas/
       services/
-    sync/
-      services/
-      workers/
-      outbox/
-      reconciliation/
 
   infrastructure/
-    db/
-      prisma-client.server.ts
-    repositories/                         # cross-module repository implementations
-    shopify-gateways/
-      schemas/
-      mappers/
-    jobs/
-      workers/
-      scheduler/
 
   contracts/                              # cross-module zod contracts
   shared/                                 # generic cross-module utilities only
@@ -237,18 +210,16 @@ Notes:
 - API responses follow the standard error shape (`code`, `message`, `requestId`, `retryable`, `details`).
 
 ## Frontend and UI Isolation Rules
-- App proxy route serves a minimal shell and iframe only.
-- Dashboard UI, CSS, and JS live inside iframe app.
-- No storefront/theme CSS imported into dashboard iframe app.
+- Customer-facing account UI belongs in customer account extensions.
+- Avoid rebuilding a parallel iframe dashboard unless there is a clear platform gap.
 - React components must not perform authorization decisions; they consume authorized API results.
-- Dashboard visual decisions (tokens/components) should align with `docs/specs/brand-kit.md` unless an Architect-approved exception is documented.
-- Customer-facing dashboard copy must be Norwegian (Bokmal) in production UI.
+- Customer-facing copy should match the live product language and surface.
 
 ## Testing and Quality Gates
 Minimum expectations for all non-trivial changes:
 - Unit tests for new service logic and schema validation.
-- Integration tests for high-risk routes (auth, membership, onboarding, sync).
-- Idempotency tests for webhook and retryable sync flows.
+- Integration tests for high-risk routes (auth, membership, onboarding, app proxy).
+- Idempotency tests for webhook processing where retries are expected.
 - Regression tests for changed contracts or ownership rules.
 
 Before merge:

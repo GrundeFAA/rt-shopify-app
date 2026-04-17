@@ -30,7 +30,6 @@ Example:
 
 ## Trigger Events
 - `customers/create` (onboarding trigger)
-- `customers/update` is not used for onboarding note parsing in MVP
 
 ## Processing Flow (`customers/create`)
 1. Receive and verify webhook signature
@@ -54,7 +53,7 @@ Branching:
   - Ensure Shopify customer tag converges to expected verification tag
 
 ## Member Activation Rules
-- Inactive members cannot access company dashboard data.
+- Inactive members cannot access protected B2B functionality.
 - Inactive members see a message to contact a company administrator for activation.
 - Administrator action changes member status:
   - `inactive -> active`: Shopify tag `b2b-unverified -> b2b`
@@ -79,10 +78,6 @@ App DB membership status is source of truth; Shopify tags mirror that state for 
 - Tag update failure: keep membership status as source of truth and enqueue retry
 - Duplicate webhooks: dedupe via webhook/event idempotency handling
 - Existing linked customer with conflicting company payload (`company_org_number` mismatch): reject onboarding mutation and log conflict event
-
-## `customers/update` Scope (MVP)
-- Reserved for later synchronization concerns (for example profile or address-related reactions)
-- Must not re-run onboarding note parsing or mutate membership role/status from note content
 
 ## Migration Plan (Future)
 Replace note parsing with structured metadata when storefront capture path supports direct metadata writes.

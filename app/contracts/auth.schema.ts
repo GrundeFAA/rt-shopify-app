@@ -17,16 +17,3 @@ export const ProxyParamsSchema = z.object({
   timestamp: z.coerce.number().int().positive(),
   logged_in_customer_id: z.string().min(1),
 });
-
-export const DashboardSessionClaimsSchema = z.object({
-  customerId: z.string().min(1),
-  companyId: z.string().min(1),
-  shop: z.string().min(1),
-  role: MembershipRoleSchema,
-  status: MembershipStatusSchema,
-  iat: z.number().int().positive(),
-  exp: z.number().int().positive(),
-  jti: z.string().uuid(),
-});
-
-export type DashboardSessionClaims = z.infer<typeof DashboardSessionClaimsSchema>;

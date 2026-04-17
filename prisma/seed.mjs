@@ -7,15 +7,11 @@ const COMPANY_ID = process.env.TEST_COMPANY_ID ?? "cmp_001";
 const COMPANY_PROFILE = {
   companyName: "Reolteknikk AS",
   orgNumber: "123456789",
-};
-
-const POST_ADDRESS = {
-  line1: "Storgata 15",
-  line2: "Suite 2",
-  postalCode: "0155",
-  city: "Oslo",
-  country: "NO",
-  source: "dashboard",
+  addressLine1: "Storgata 15",
+  addressLine2: "Suite 2",
+  addressPostalCode: "0155",
+  addressCity: "Oslo",
+  addressCountry: "NO",
 };
 
 const AUTH_MEMBERSHIP_MAP = {
@@ -41,32 +37,6 @@ async function main() {
     },
   });
 
-  const existingPostAddress = await prisma.companySharedAddress.findFirst({
-    where: {
-      companyId: COMPANY_ID,
-      addressType: "post",
-    },
-    select: { id: true },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
-
-  if (existingPostAddress) {
-    await prisma.companySharedAddress.update({
-      where: { id: existingPostAddress.id },
-      data: POST_ADDRESS,
-    });
-  } else {
-    await prisma.companySharedAddress.create({
-      data: {
-        companyId: COMPANY_ID,
-        addressType: "post",
-        label: "Postadresse",
-        ...POST_ADDRESS,
-        createdByMemberId: "system",
-      },
-    });
-  }
-
   const offlineSession = await prisma.session.findFirst({
     where: { isOnline: false },
     select: { shop: true },
@@ -90,7 +60,7 @@ async function main() {
 
   if (!offlineSession) {
     console.warn(
-      "\nWarning: No offline Shopify session found in DB. Mirror and drift endpoints may return INFRA_UNAVAILABLE until the app has a valid offline session.",
+      "\nWarning: No offline Shopify session found in DB. Some admin-backed app functionality may remain unavailable until the app has a valid offline session.",
     );
   } else {
     console.log(`\nOffline Shopify session detected for shop: ${offlineSession.shop}`);

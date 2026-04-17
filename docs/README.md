@@ -1,47 +1,26 @@
-# Documentation Structure and Naming
+# Documentation Status
 
-## Why this exists
-`docs/01-09` define the current project foundation (scope, architecture, contracts, and MVP behavior).  
-New documents should not continue numeric sequencing by default.
+The old embedded-dashboard documentation set is being retired.
 
-## Documentation taxonomy
-Use purpose-based naming for all new docs:
+This project has shifted to a Shopify-native B2B approach centered on:
 
-- `docs/guides/*`
-  - Practical engineering guidance for implementation and team alignment.
-  - Role-specific guidance lives in `docs/guides/roles/*`.
-- `docs/specs/*`
-  - Feature or domain specifications that define behavior and acceptance criteria.
-  - Goal progress ledgers live in `docs/specs/goal-*-progress.md`.
-- `docs/runbooks/*`
-  - Operational playbooks for incidents, deploys, migrations, and support.
-- `docs/adrs/*`
-  - Architecture Decision Records for meaningful technical decisions and tradeoffs.
+- customer account UI extensions
+- Shopify B2B entities and metafields
+- onboarding webhooks
+- app proxy cart context where still needed
 
-## Current baseline (foundation docs)
-The numbered docs remain the current foundation set:
+Many historical docs described the previous custom dashboard and API architecture and should no longer be treated as current.
 
-- `docs/01-company-dashboard-context.md`
-- `docs/02-embedding-options-non-plus.md`
-- `docs/03-auth-and-authorization-contract.md`
-- `docs/04-frontend-isolation-strategy.md`
-- `docs/05-api-layer-backend-architecture.md`
-- `docs/06-error-handling-and-reliability.md`
-- `docs/07-validation-standard-zod.md`
-- `docs/08-company-dashboard-mvp-requirements.md`
-- `docs/09-customer-onboarding-webhook-flow.md`
+## What to trust right now
 
-## Naming rules for new docs
-- Do not add new top-level numbered docs unless we intentionally publish a new baseline set.
-- Use clear kebab-case names based on purpose, for example:
-  - `docs/guides/engineering-guidelines.md`
-  - `docs/specs/company-member-activation.md`
-  - `docs/runbooks/onboarding-webhook-recovery.md`
-  - `docs/adrs/2026-03-30-dashboard-auth-token-strategy.md`
+- live code in `app/`
+- live code in `extensions/account-company-dashboard/`
+- `docs/09-customer-onboarding-webhook-flow.md` for onboarding webhook behavior
+- focused new docs/specs added after the Shopify-native pivot
 
-## Updating docs in PRs
-When code changes alter behavior or architecture:
-- Update the relevant foundation/spec doc.
-- If implementation guidance changed, update `docs/guides/engineering-guidelines.md`.
-- If a major architecture decision changed, add an ADR in `docs/adrs/`.
+## Guidance for new docs
+
+- Prefer purpose-based docs under `docs/guides/`, `docs/specs/`, `docs/runbooks/`, and `docs/adrs/`.
+- Do not recreate the old numbered dashboard baseline.
+- When documenting behavior, describe the Shopify-native approach directly instead of the removed iframe dashboard/API model.
 
