@@ -12,6 +12,22 @@ import {
   requireOfflineAdminServiceContext,
 } from "../modules/shopify/admin.server";
 
+function buildCustomerAccountCorsHeaders(request: Request): Headers {
+  const origin = request.headers.get("origin");
+  const headers = new Headers({
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Request-Id",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  });
+
+  if (origin === "https://extensions.shopifycdn.com") {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+
+  return headers;
+}
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   let customerAccountContext;
 
@@ -66,11 +82,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   } catch (error) {
     const errorResponse = toApiErrorResponse(error, request);
-    return customerAccountContext ? customerAccountContext.cors(errorResponse) : errorResponse;
+
+    if (customerAccountContext) {
+      return customerAccountContext.cors(errorResponse);
+    }
+
+    const headers = buildCustomerAccountCorsHeaders(request);
+    for (const [key, value] of headers.entries()) {
+      errorResponse.headers.set(key, value);
+    }
+
+    return errorResponse;
   }
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: buildCustomerAccountCorsHeaders(request),
+    });
+  }
+
   return Response.json(
     {
       ok: false,
@@ -79,6 +112,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     {
       status: 405,
       headers: {
+        ...Object.fromEntries(buildCustomerAccountCorsHeaders(request).entries()),
         "x-request-id": getOrCreateRequestId(request),
       },
     },

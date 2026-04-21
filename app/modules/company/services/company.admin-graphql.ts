@@ -186,6 +186,9 @@ export const COMPANY_MAIN_LOCATION_QUERY = `#graphql
         nodes {
           id
           name
+          taxSettings {
+            taxRegistrationId
+          }
           billingAddress {
             address1
             address2

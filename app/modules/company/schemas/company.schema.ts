@@ -1,6 +1,14 @@
 import { z } from "zod";
 
 const ShopifyIdSchema = z.string().trim().min(1);
+export const SHOPIFY_COMPANY_LOCATION_ROLE_VALUES = ["admin", "buyer"] as const;
+export const SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP = {
+  admin: "Location admin",
+  buyer: "Ordering only",
+} as const satisfies Record<
+  (typeof SHOPIFY_COMPANY_LOCATION_ROLE_VALUES)[number],
+  string
+>;
 
 export const CompanyIdInputSchema = z.object({
   companyId: ShopifyIdSchema,
@@ -69,7 +77,7 @@ export const CreateCompanyLocationAddressSchema = z.object({
 
 export const CreateCompanyLocationAssignmentSchema = z.object({
   customerId: ShopifyIdSchema,
-  role: z.enum(["admin", "buyer"]),
+  role: z.enum(SHOPIFY_COMPANY_LOCATION_ROLE_VALUES),
 });
 
 export const CreateCompanyLocationInputSchema = CompanyIdInputSchema.extend({

@@ -6,7 +6,11 @@ import type {
   CreateCompanyLocationInput,
   CreateCompanyLocationResponse,
 } from "../schemas/company.schema";
-import { CreateCompanyLocationResponseSchema } from "../schemas/company.schema";
+import {
+  CreateCompanyLocationResponseSchema,
+  SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP,
+  SHOPIFY_COMPANY_LOCATION_ROLE_VALUES,
+} from "../schemas/company.schema";
 import {
   COMPANY_CONTACT_ASSIGN_ROLES_MUTATION,
   COMPANY_LOCATION_CREATE_MUTATION,
@@ -78,6 +82,12 @@ const CompanyManagementDataSchema = z.object({
           z.object({
             id: z.string(),
             name: z.string(),
+            taxSettings: z
+              .object({
+                taxRegistrationId: z.string().nullable().optional(),
+              })
+              .nullable()
+              .optional(),
             billingAddress: CompanyAddressSchema,
             shippingAddress: CompanyAddressSchema,
           }),
@@ -190,6 +200,14 @@ function mapDeliveryAddress(address: CreateCompanyLocationInput["deliveryAddress
   };
 }
 
+function resolveCompanyContactRoleId(
+  roles: ManagedCompany["contactRoles"]["nodes"],
+  requestedRole: (typeof SHOPIFY_COMPANY_LOCATION_ROLE_VALUES)[number],
+) {
+  const expectedRoleName = SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP[requestedRole];
+  return roles.find((role) => role.name === expectedRoleName)?.id ?? null;
+}
+
 export async function createCompanyLocation(
   context: AdminServiceContext,
   currentCustomerId: string,
@@ -250,6 +268,7 @@ export async function createCompanyLocation(
       companyId: company.id,
       input: {
         name: input.locationName,
+        taxRegistrationId: fallbackMainLocation.taxSettings?.taxRegistrationId ?? undefined,
         billingAddress: mapInheritedBillingAddress(
           fallbackMainLocation.billingAddress ?? fallbackMainLocation.shippingAddress,
         ),
@@ -269,9 +288,6 @@ export async function createCompanyLocation(
     );
   }
 
-  const roleIdByName = new Map(
-    company.contactRoles.nodes.map((role) => [role.name.toLowerCase(), role.id]),
-  );
   const contactIdByCustomerId = new Map(
     company.contacts.nodes
       .filter(
@@ -295,14 +311,22 @@ export async function createCompanyLocation(
       );
     }
 
-    const companyContactRoleId = roleIdByName.get(selectedUser.role.toLowerCase());
+    const companyContactRoleId = resolveCompanyContactRoleId(
+      company.contactRoles.nodes,
+      selectedUser.role,
+    );
     if (!companyContactRoleId) {
       throw new AppError(
         "VALIDATION_FAILED",
         "Selected role is not available for this company.",
         400,
         false,
-        { role: selectedUser.role, companyId: company.id },
+        {
+          role: selectedUser.role,
+          companyId: company.id,
+          expectedRoleName: SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP[selectedUser.role],
+          availableRoles: company.contactRoles.nodes.map((role) => role.name),
+        },
       );
     }
 

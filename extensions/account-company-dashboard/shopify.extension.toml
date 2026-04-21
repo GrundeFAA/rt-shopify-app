@@ -36,7 +36,6 @@ network_access = true
 [extensions.settings]
 [[extensions.settings.fields]]
 key = "app_base_url"
-type = "url"
+type = "single_line_text_field"
 name = "App base URL"
 description = "Base URL for backend requests from the customer account extension."
-required = true

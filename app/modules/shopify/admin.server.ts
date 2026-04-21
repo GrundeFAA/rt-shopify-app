@@ -115,7 +115,9 @@ export async function requireCustomerAccountServiceContext(
     );
   }
 
-  const shop = new URL(destination).host;
+  const shop = destination.startsWith("http://") || destination.startsWith("https://")
+    ? new URL(destination).host
+    : destination;
 
   return {
     cors: publicContext.cors,
