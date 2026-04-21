@@ -8,9 +8,11 @@ import { AppError } from "../modules/auth/errors";
 import {
   CreateCompanyLocationInputSchema,
   DeleteCompanyLocationInputSchema,
+  SetCompanyMainLocationInputSchema,
 } from "../modules/company/schemas/company.schema";
 import { createCompanyLocation } from "../modules/company/services/create-company-location.service";
 import { deleteCompanyLocation } from "../modules/company/services/delete-company-location.service";
+import { setCompanyMainLocation } from "../modules/company/services/set-company-main-location.service";
 import {
   requireCustomerAccountServiceContext,
   requireOfflineAdminServiceContext,
@@ -19,7 +21,7 @@ import {
 function buildCustomerAccountCorsHeaders(request: Request): Headers {
   const origin = request.headers.get("origin");
   const headers = new Headers({
-    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Request-Id",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -61,7 +63,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
     let result;
 
-    if (request.method === "DELETE") {
+    if (request.method === "PATCH") {
+      const parseResult = SetCompanyMainLocationInputSchema.safeParse(payload);
+      if (!parseResult.success) {
+        throw new AppError(
+          "VALIDATION_FAILED",
+          "Invalid main location payload.",
+          400,
+          false,
+          validationDetailsFromIssues(parseResult.error.issues),
+        );
+      }
+
+      result = await setCompanyMainLocation(
+        adminContext,
+        currentCustomerId,
+        parseResult.data,
+      );
+    } else if (request.method === "DELETE") {
       const parseResult = DeleteCompanyLocationInputSchema.safeParse(payload);
       if (!parseResult.success) {
         throw new AppError(
@@ -132,7 +151,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return Response.json(
     {
       ok: false,
-      message: "Use POST to create company locations or DELETE to remove a location.",
+      message: "Use POST to create locations, PATCH to set default location, or DELETE to remove a location.",
     },
     {
       status: 405,

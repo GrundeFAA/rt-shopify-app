@@ -27,3 +27,14 @@ export async function deleteCompanyLocation({companyId, companyLocationId}) {
     {method: "DELETE"},
   );
 }
+
+export async function setCompanyMainLocation({companyId, companyLocationId}) {
+  return postToAppBackend(
+    "/api/customer-account/company/locations",
+    {
+      companyId,
+      companyLocationId,
+    },
+    {method: "PATCH"},
+  );
+}

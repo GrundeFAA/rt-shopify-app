@@ -182,6 +182,15 @@ export const DeleteCompanyLocationResponseSchema = z.object({
   deleted: z.boolean(),
 });
 
+export const SetCompanyMainLocationInputSchema = CompanyIdInputSchema.extend({
+  companyLocationId: ShopifyIdSchema,
+});
+
+export const SetCompanyMainLocationResponseSchema = z.object({
+  companyId: ShopifyIdSchema,
+  mainLocationId: ShopifyIdSchema,
+});
+
 export const InviteCompanyUserAssignmentSchema = z.object({
   companyLocationId: ShopifyIdSchema,
   role: z.enum(SHOPIFY_COMPANY_LOCATION_ROLE_VALUES),
@@ -234,6 +243,8 @@ export type CreateCompanyLocationInput = z.infer<typeof CreateCompanyLocationInp
 export type CreateCompanyLocationResponse = z.infer<typeof CreateCompanyLocationResponseSchema>;
 export type DeleteCompanyLocationInput = z.infer<typeof DeleteCompanyLocationInputSchema>;
 export type DeleteCompanyLocationResponse = z.infer<typeof DeleteCompanyLocationResponseSchema>;
+export type SetCompanyMainLocationInput = z.infer<typeof SetCompanyMainLocationInputSchema>;
+export type SetCompanyMainLocationResponse = z.infer<typeof SetCompanyMainLocationResponseSchema>;
 export type InviteCompanyUserInput = z.infer<typeof InviteCompanyUserInputSchema>;
 export type InviteCompanyUserResponse = z.infer<typeof InviteCompanyUserResponseSchema>;
 export type UpdateCompanyUserInput = z.infer<typeof UpdateCompanyUserInputSchema>;

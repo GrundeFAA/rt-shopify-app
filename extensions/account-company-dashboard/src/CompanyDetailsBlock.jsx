@@ -12,7 +12,11 @@ import {
   loadCompanySettingsData,
   saveCompanySettings,
 } from "./services/company-settings.service";
-import {createCompanyLocation, deleteCompanyLocation} from "./services/company-location-actions.service";
+import {
+  createCompanyLocation,
+  deleteCompanyLocation,
+  setCompanyMainLocation,
+} from "./services/company-location-actions.service";
 import {inviteCompanyUser, updateCompanyUser} from "./services/company-user-actions.service";
 
 export default async () => {
@@ -46,6 +50,7 @@ function Extension() {
   const [locationFormSuccess, setLocationFormSuccess] = useState("");
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
   const [deletingLocationId, setDeletingLocationId] = useState("");
+  const [settingDefaultLocationId, setSettingDefaultLocationId] = useState("");
   const [locationDeleteError, setLocationDeleteError] = useState("");
   const [locationDeleteSuccess, setLocationDeleteSuccess] = useState("");
   const [addAllUsersToLocation, setAddAllUsersToLocation] = useState(false);
@@ -66,6 +71,10 @@ function Extension() {
   const [editCompanyAdmin, setEditCompanyAdmin] = useState(false);
   const [selectedEditLocationIds, setSelectedEditLocationIds] = useState({});
   const [selectedEditRoles, setSelectedEditRoles] = useState({});
+
+  function buildLocationActionMenuId(locationId) {
+    return `location-actions-${String(locationId).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  }
 
   const loadCompanySettings = useCallback(async () => {
     if (!currentLocationId && !authenticatedCompanyId) {
@@ -281,6 +290,38 @@ function Extension() {
     }
   }
 
+  async function handleSetDefaultLocation(locationId) {
+    if (!companyId || !locationId) {
+      setLocationDeleteError(shopify.i18n.translate("companySettingsMissingCompany"));
+      return;
+    }
+
+    if (idsMatch(mainLocationId, locationId)) {
+      return;
+    }
+
+    setSettingDefaultLocationId(locationId);
+    setLocationDeleteError("");
+    setLocationDeleteSuccess("");
+
+    try {
+      await setCompanyMainLocation({
+        companyId,
+        companyLocationId: locationId,
+      });
+      setLocationDeleteSuccess(shopify.i18n.translate("companySettingsSetDefaultLocationSuccess"));
+      await loadCompanySettings();
+    } catch (error) {
+      setLocationDeleteError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsSetDefaultLocationError"),
+      );
+    } finally {
+      setSettingDefaultLocationId("");
+    }
+  }
+
   async function handleInviteUser() {
     if (!companyId) {
       setInviteError(shopify.i18n.translate("companySettingsMissingCompany"));
@@ -493,30 +534,46 @@ function Extension() {
                     {mainLocation && mainLocation.id === location.id
                       ? ` (${shopify.i18n.translate("companySettingsMainLocationLabel")})`
                       : ""}
-                    {location.hasOrders
-                      ? ` (${shopify.i18n.translate("companySettingsLocationHasOrdersLabel")})`
-                      : ""}
                   </s-text>
                   <s-text>{formatLocationAddress(location, shopify.i18n.translate)}</s-text>
                   <s-box padding="small-100">
                     <s-button
-                      accessibilityLabel={shopify.i18n.translate("companySettingsDeleteLocationAccessibilityLabel", {
-                        name: location.name || shopify.i18n.translate("companySettingsLocationFallback"),
-                      })}
-                      disabled={
-                        deletingLocationId === location.id ||
-                        idsMatch(mainLocationId, location.id) ||
-                        location.hasOrders
-                      }
-                      onClick={() => handleDeleteLocation(location.id)}
+                      accessibilityLabel={shopify.i18n.translate("companySettingsUserActions")}
+                      command="--toggle"
+                      commandFor={buildLocationActionMenuId(location.id)}
+                      inlineSize="fit-content"
                       variant="secondary"
                     >
-                      {deletingLocationId === location.id ? (
-                        <s-spinner accessibilityLabel={shopify.i18n.translate("companySettingsDeletingLocation")} />
-                      ) : (
-                        <s-icon size="small" type="delete" />
-                      )}
+                      <s-icon size="small" type="menu-horizontal" />
                     </s-button>
+                    <s-menu
+                      accessibilityLabel={shopify.i18n.translate("companySettingsUserActions")}
+                      id={buildLocationActionMenuId(location.id)}
+                    >
+                      <s-button
+                        disabled={settingDefaultLocationId === location.id || idsMatch(mainLocationId, location.id)}
+                        onClick={() => handleSetDefaultLocation(location.id)}
+                      >
+                        {settingDefaultLocationId === location.id
+                          ? shopify.i18n.translate("companySettingsProcessing")
+                          : shopify.i18n.translate("companySettingsSetAsDefault")}
+                      </s-button>
+                      <s-button
+                        accessibilityLabel={shopify.i18n.translate("companySettingsDeleteLocationAccessibilityLabel", {
+                          name: location.name || shopify.i18n.translate("companySettingsLocationFallback"),
+                        })}
+                        disabled={
+                          deletingLocationId === location.id ||
+                          idsMatch(mainLocationId, location.id) ||
+                          location.hasOrders
+                        }
+                        loading={deletingLocationId === location.id}
+                        tone="critical"
+                        onClick={() => handleDeleteLocation(location.id)}
+                      >
+                        {shopify.i18n.translate("companySettingsDeleteLocation")}
+                      </s-button>
+                    </s-menu>
                   </s-box>
                 </s-grid>
               </s-box>
