@@ -9,6 +9,7 @@ export default async () => {
 
 function Extension() {
   const locationId = shopify.locationId;
+  const companyId = shopify.authenticatedAccount?.purchasingCompany?.value?.company?.id;
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -22,6 +23,7 @@ function Extension() {
 
       try {
         const nextMembers = await loadCompanyLocationMembers({
+          companyId,
           locationId,
           translate: shopify.i18n.translate,
         });
@@ -46,7 +48,7 @@ function Extension() {
     return () => {
       isActive = false;
     };
-  }, [locationId]);
+  }, [companyId, locationId]);
 
   const modalContent = useMemo(() => {
     if (isLoading) {
@@ -96,7 +98,7 @@ function Extension() {
 
   return (
     <s-box>
-      <s-button command="--show" commandFor="manage-users-modal">
+      <s-button inlineSize="fit-content" variant="secondary" command="--show" commandFor="manage-users-modal">
         {shopify.i18n.translate("manageUsers")}
       </s-button>
       <s-modal id="manage-users-modal" heading={shopify.i18n.translate("manageUsersModalTitle")}>
@@ -104,7 +106,7 @@ function Extension() {
           <s-stack direction="block" gap="base">
             <s-text>{shopify.i18n.translate("manageUsersModalBody")}</s-text>
             {modalContent}
-            <s-button command="--hide" commandFor="manage-users-modal">
+            <s-button inlineSize="fit-content" variant="secondary" command="--hide" commandFor="manage-users-modal">
               {shopify.i18n.translate("close")}
             </s-button>
           </s-stack>

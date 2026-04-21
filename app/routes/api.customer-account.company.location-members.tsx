@@ -5,12 +5,8 @@ import {
   validationDetailsFromIssues,
 } from "../modules/auth/api-error.server";
 import { AppError } from "../modules/auth/errors";
-import {
-  CreateCompanyLocationInputSchema,
-  DeleteCompanyLocationInputSchema,
-} from "../modules/company/schemas/company.schema";
-import { createCompanyLocation } from "../modules/company/services/create-company-location.service";
-import { deleteCompanyLocation } from "../modules/company/services/delete-company-location.service";
+import { CompanyLocationMembersInputSchema } from "../modules/company/schemas/company.schema";
+import { getCustomerAccountLocationMembers } from "../modules/company/services/customer-account-company-dashboard.service";
 import {
   requireCustomerAccountServiceContext,
   requireOfflineAdminServiceContext,
@@ -19,7 +15,7 @@ import {
 function buildCustomerAccountCorsHeaders(request: Request): Headers {
   const origin = request.headers.get("origin");
   const headers = new Headers({
-    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Request-Id",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -45,6 +41,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       throw new AppError("VALIDATION_FAILED", "Request body must be valid JSON.", 400, false);
     }
 
+    const parseResult = CompanyLocationMembersInputSchema.safeParse(payload);
+    if (!parseResult.success) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "Invalid company location members payload.",
+        400,
+        false,
+        validationDetailsFromIssues(parseResult.error.issues),
+      );
+    }
+
     const currentCustomerId = customerAccountContext.sessionToken.sub;
     if (!currentCustomerId || typeof currentCustomerId !== "string") {
       throw new AppError(
@@ -59,43 +66,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       customerAccountContext.shop,
       request,
     );
-    let result;
-
-    if (request.method === "DELETE") {
-      const parseResult = DeleteCompanyLocationInputSchema.safeParse(payload);
-      if (!parseResult.success) {
-        throw new AppError(
-          "VALIDATION_FAILED",
-          "Invalid company location delete payload.",
-          400,
-          false,
-          validationDetailsFromIssues(parseResult.error.issues),
-        );
-      }
-
-      result = await deleteCompanyLocation(
-        adminContext,
-        currentCustomerId,
-        parseResult.data,
-      );
-    } else {
-      const parseResult = CreateCompanyLocationInputSchema.safeParse(payload);
-      if (!parseResult.success) {
-        throw new AppError(
-          "VALIDATION_FAILED",
-          "Invalid company location payload.",
-          400,
-          false,
-          validationDetailsFromIssues(parseResult.error.issues),
-        );
-      }
-
-      result = await createCompanyLocation(
-        adminContext,
-        currentCustomerId,
-        parseResult.data,
-      );
-    }
+    const result = await getCustomerAccountLocationMembers(
+      adminContext,
+      currentCustomerId,
+      parseResult.data,
+    );
 
     return customerAccountContext.cors(
       Response.json(result, {
@@ -132,7 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return Response.json(
     {
       ok: false,
-      message: "Use POST to create company locations or DELETE to remove a location.",
+      message: "Use POST to load company location members.",
     },
     {
       status: 405,

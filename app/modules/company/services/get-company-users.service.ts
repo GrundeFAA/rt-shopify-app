@@ -1,6 +1,9 @@
 import { z } from "zod";
 import type { CompanyIdInput, CompanyUsersResponse } from "../schemas/company.schema";
-import { CompanyUsersResponseSchema } from "../schemas/company.schema";
+import {
+  CompanyUsersResponseSchema,
+  SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP,
+} from "../schemas/company.schema";
 import { AppError } from "../../auth/errors";
 import type { AdminServiceContext } from "../../shopify/admin.server";
 import { executeAdminGraphql, toShopifyGid } from "../../shopify/admin.server";
@@ -29,6 +32,7 @@ const CompanyUsersDataSchema = z.object({
             roleAssignments: z.object({
               nodes: z.array(
                 z.object({
+                  id: z.string(),
                   companyLocation: z
                     .object({
                       id: z.string(),
@@ -74,14 +78,37 @@ export async function getCompanyUsers(
     });
   }
 
+  const roleKeyByName = new Map<string, "admin" | "buyer">(
+    Object.entries(SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP).map(([roleKey, roleName]) => [
+      roleName,
+      roleKey as "admin" | "buyer",
+    ]),
+  );
+
   const users = data.company.contacts.nodes.map((contact) => {
     const fullName = [contact.customer?.firstName, contact.customer?.lastName]
       .filter(Boolean)
       .join(" ")
       .trim();
+    const assignments = contact.roleAssignments.nodes
+      .filter(
+        (entry): entry is typeof entry & {
+          id: string;
+          companyLocation: { id: string; name: string };
+          role: { id: string; name: string };
+        } => Boolean(entry.id && entry.companyLocation?.id && entry.role?.name),
+      )
+      .map((entry) => ({
+        companyLocationId: entry.companyLocation.id,
+        companyLocationName: entry.companyLocation.name,
+        companyContactRoleAssignmentId: entry.id,
+        role: roleKeyByName.get(entry.role.name) ?? "buyer",
+        roleName: entry.role.name,
+      }));
 
     return {
       id: contact.customer?.id ?? contact.id,
+      companyContactId: contact.id,
       name: fullName || contact.customer?.email || "Unknown user",
       email: contact.customer?.email ?? "",
       isMainContact: contact.isMainContact,
@@ -90,6 +117,7 @@ export async function getCompanyUsers(
       companyLocations: contact.roleAssignments.nodes
         .map((entry) => entry.companyLocation)
         .filter((location): location is { id: string; name: string } => Boolean(location)),
+      assignments,
     };
   });
 

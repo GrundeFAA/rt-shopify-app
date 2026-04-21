@@ -1,11 +1,9 @@
-import {getGraphqlErrorMessage} from "./client";
-
 function getAppBaseUrl() {
   const value = shopify.settings?.value?.app_base_url || "";
   return value.replace(/\/$/, "");
 }
 
-export async function postToAppBackend(path, payload) {
+export async function postToAppBackend(path, payload, options = {}) {
   const appBaseUrl = getAppBaseUrl();
   if (!appBaseUrl) {
     throw new Error("Missing app backend URL setting.");
@@ -13,7 +11,7 @@ export async function postToAppBackend(path, payload) {
 
   const sessionToken = await shopify.sessionToken.get();
   const response = await fetch(`${appBaseUrl}${path}`, {
-    method: "POST",
+    method: options.method || "POST",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
       "Content-Type": "application/json",
@@ -33,7 +31,7 @@ export async function postToAppBackend(path, payload) {
     const errorMessage =
       data?.message ||
       data?.error ||
-      getGraphqlErrorMessage(data, "Request failed.") ||
+      data?.errors?.[0]?.message ||
       "Request failed.";
     const error = new Error(errorMessage);
     error.code = data?.code;

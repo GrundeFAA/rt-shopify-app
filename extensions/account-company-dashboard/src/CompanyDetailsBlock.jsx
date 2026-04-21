@@ -5,13 +5,15 @@ import {
   buildCompanyUsers,
   formatLocationAddress,
   getMainLocation,
+  idsMatch,
   validateOptionalEmail,
 } from "./utils/company-dashboard";
 import {
   loadCompanySettingsData,
   saveCompanySettings,
 } from "./services/company-settings.service";
-import {createCompanyLocation} from "./services/company-location-actions.service";
+import {createCompanyLocation, deleteCompanyLocation} from "./services/company-location-actions.service";
+import {inviteCompanyUser, updateCompanyUser} from "./services/company-user-actions.service";
 
 export default async () => {
   render(<Extension />, document.body)
@@ -43,8 +45,27 @@ function Extension() {
   const [locationFormError, setLocationFormError] = useState("");
   const [locationFormSuccess, setLocationFormSuccess] = useState("");
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
+  const [deletingLocationId, setDeletingLocationId] = useState("");
+  const [locationDeleteError, setLocationDeleteError] = useState("");
+  const [locationDeleteSuccess, setLocationDeleteSuccess] = useState("");
+  const [addAllUsersToLocation, setAddAllUsersToLocation] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState({});
   const [selectedUserRoles, setSelectedUserRoles] = useState({});
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteCompanyAdmin, setInviteCompanyAdmin] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [isInvitingUser, setIsInvitingUser] = useState(false);
+  const [selectedInviteLocationIds, setSelectedInviteLocationIds] = useState({});
+  const [selectedInviteRoles, setSelectedInviteRoles] = useState({});
+  const [editUserError, setEditUserError] = useState("");
+  const [editUserSuccess, setEditUserSuccess] = useState("");
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [editCompanyAdmin, setEditCompanyAdmin] = useState(false);
+  const [selectedEditLocationIds, setSelectedEditLocationIds] = useState({});
+  const [selectedEditRoles, setSelectedEditRoles] = useState({});
 
   const loadCompanySettings = useCallback(async () => {
     if (!currentLocationId && !authenticatedCompanyId) {
@@ -124,6 +145,46 @@ function Extension() {
     }));
   }
 
+  function toggleInviteLocation(locationId, checked) {
+    setSelectedInviteLocationIds((currentValue) => ({
+      ...currentValue,
+      [locationId]: checked,
+    }));
+    setSelectedInviteRoles((currentValue) => ({
+      ...currentValue,
+      [locationId]: currentValue[locationId] || "buyer",
+    }));
+  }
+
+  function openEditUser(user) {
+    setActiveUser(user);
+    setEditCompanyAdmin(Boolean(user.isAdmin));
+    setEditUserError("");
+    setEditUserSuccess("");
+
+    const nextSelectedLocationIds = {};
+    const nextSelectedRoles = {};
+
+    for (const assignment of user.assignments ?? []) {
+      nextSelectedLocationIds[assignment.companyLocationId] = true;
+      nextSelectedRoles[assignment.companyLocationId] = assignment.role;
+    }
+
+    setSelectedEditLocationIds(nextSelectedLocationIds);
+    setSelectedEditRoles(nextSelectedRoles);
+  }
+
+  function toggleEditLocation(locationId, checked) {
+    setSelectedEditLocationIds((currentValue) => ({
+      ...currentValue,
+      [locationId]: checked,
+    }));
+    setSelectedEditRoles((currentValue) => ({
+      ...currentValue,
+      [locationId]: currentValue[locationId] || "buyer",
+    }));
+  }
+
   async function handleCreateLocation() {
     if (!companyId) {
       setLocationFormError(shopify.i18n.translate("companySettingsMissingCompany"));
@@ -143,10 +204,12 @@ function Extension() {
     setIsCreatingLocation(true);
     setLocationFormError("");
     setLocationFormSuccess("");
+    setLocationDeleteError("");
+    setLocationDeleteSuccess("");
 
     try {
       const selectedUsers = users
-        .filter((user) => selectedUserIds[user.id])
+        .filter((user) => addAllUsersToLocation || selectedUserIds[user.id])
         .map((user) => ({
           customerId: user.id,
           role: selectedUserRoles[user.id] || "buyer",
@@ -170,6 +233,7 @@ function Extension() {
       setDeliveryLine2("");
       setDeliveryPostalCode("");
       setDeliveryCity("");
+      setAddAllUsersToLocation(false);
       setSelectedUserIds({});
       setSelectedUserRoles({});
       await loadCompanySettings();
@@ -181,6 +245,138 @@ function Extension() {
       );
     } finally {
       setIsCreatingLocation(false);
+    }
+  }
+
+  async function handleDeleteLocation(locationId) {
+    if (!companyId || !locationId) {
+      setLocationDeleteError(shopify.i18n.translate("companySettingsMissingCompany"));
+      return;
+    }
+
+    if (idsMatch(mainLocationId, locationId)) {
+      setLocationDeleteError(shopify.i18n.translate("companySettingsLocationDeleteMainError"));
+      return;
+    }
+
+    setDeletingLocationId(locationId);
+    setLocationDeleteError("");
+    setLocationDeleteSuccess("");
+
+    try {
+      await deleteCompanyLocation({
+        companyId,
+        companyLocationId: locationId,
+      });
+      setLocationDeleteSuccess(shopify.i18n.translate("companySettingsLocationDeleteSuccess"));
+      await loadCompanySettings();
+    } catch (error) {
+      setLocationDeleteError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsLocationDeleteError"),
+      );
+    } finally {
+      setDeletingLocationId("");
+    }
+  }
+
+  async function handleInviteUser() {
+    if (!companyId) {
+      setInviteError(shopify.i18n.translate("companySettingsMissingCompany"));
+      return;
+    }
+
+    if (!inviteFirstName.trim() || !inviteLastName.trim() || !inviteEmail.trim()) {
+      setInviteError(shopify.i18n.translate("companySettingsInviteValidationError"));
+      return;
+    }
+
+    const assignments = locations
+      .filter((location) => selectedInviteLocationIds[location.id])
+      .map((location) => ({
+        companyLocationId: location.id,
+        role: selectedInviteRoles[location.id] || "buyer",
+      }));
+
+    if (assignments.length === 0) {
+      setInviteError(shopify.i18n.translate("companySettingsInviteAssignmentsRequired"));
+      return;
+    }
+
+    setInviteError("");
+    setInviteSuccess("");
+    setIsInvitingUser(true);
+
+    try {
+      await inviteCompanyUser({
+        companyId,
+        firstName: inviteFirstName.trim(),
+        lastName: inviteLastName.trim(),
+        email: inviteEmail.trim(),
+        companyAdmin: inviteCompanyAdmin,
+        assignments,
+      });
+
+      setInviteSuccess(shopify.i18n.translate("companySettingsInviteSuccess"));
+      setInviteFirstName("");
+      setInviteLastName("");
+      setInviteEmail("");
+      setInviteCompanyAdmin(false);
+      setSelectedInviteLocationIds({});
+      setSelectedInviteRoles({});
+      await loadCompanySettings();
+    } catch (error) {
+      setInviteError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsInviteError"),
+      );
+    } finally {
+      setIsInvitingUser(false);
+    }
+  }
+
+  async function handleUpdateUser() {
+    if (!companyId || !activeUser) {
+      setEditUserError(shopify.i18n.translate("companySettingsEditUserNoSelection"));
+      return;
+    }
+
+    const assignments = locations
+      .filter((location) => selectedEditLocationIds[location.id])
+      .map((location) => ({
+        companyLocationId: location.id,
+        role: selectedEditRoles[location.id] || "buyer",
+      }));
+
+    if (assignments.length === 0) {
+      setEditUserError(shopify.i18n.translate("companySettingsEditAssignmentsRequired"));
+      return;
+    }
+
+    setEditUserError("");
+    setEditUserSuccess("");
+    setIsUpdatingUser(true);
+
+    try {
+      await updateCompanyUser({
+        companyId,
+        customerId: activeUser.id,
+        companyAdmin: editCompanyAdmin,
+        assignments,
+      });
+
+      setEditUserSuccess(shopify.i18n.translate("companySettingsEditUserSuccess"));
+      await loadCompanySettings();
+    } catch (error) {
+      setEditUserError(
+        error instanceof Error && error.message
+          ? error.message
+          : shopify.i18n.translate("companySettingsEditUserError"),
+      );
+    } finally {
+      setIsUpdatingUser(false);
     }
   }
 
@@ -259,7 +455,7 @@ function Extension() {
         }}
       />
 
-      <s-button disabled={isSaving} onClick={handleSave}>
+      <s-button inlineSize="fit-content" variant="secondary" disabled={isSaving} onClick={handleSave}>
         {isSaving
           ? shopify.i18n.translate("companySettingsSaving")
           : shopify.i18n.translate("companySettingsSave")}
@@ -270,29 +466,59 @@ function Extension() {
   const locationsContent = (
     <s-stack direction="block" gap="base">
       <s-text>{shopify.i18n.translate("companySettingsLocationsDescription")}</s-text>
-      <s-button command="--show" commandFor="add-location-modal">
+      <s-button inlineSize="fit-content" variant="secondary" command="--show" commandFor="add-location-modal">
         {shopify.i18n.translate("companySettingsAddLocation")}
       </s-button>
+      {locationDeleteError ? <s-banner tone="critical">{locationDeleteError}</s-banner> : null}
+      {locationDeleteSuccess ? <s-banner tone="success">{locationDeleteSuccess}</s-banner> : null}
 
       {locations.length === 0 ? (
         <s-text>{shopify.i18n.translate("companySettingsLocationsEmpty")}</s-text>
       ) : (
         <s-box border="base" borderRadius="base">
+          <s-box padding="large" background="subdued">
+            <s-grid alignItems="center" gridTemplateColumns="1.2fr 1.8fr auto">
+              <s-text>{shopify.i18n.translate("companySettingsLocationNameColumn")}</s-text>
+              <s-text>{shopify.i18n.translate("companySettingsLocationAddressColumn")}</s-text>
+              <s-text>{shopify.i18n.translate("companySettingsUserActions")}</s-text>
+            </s-grid>
+          </s-box>
           {locations.map((location, index) => (
             <s-box key={location.id}>
               {index > 0 ? <s-divider /> : null}
-              <s-box padding="base">
-                <s-stack direction="block" gap="tight">
+              <s-box padding="large">
+                <s-grid alignItems="center" gridTemplateColumns="1.2fr 1.8fr auto">
                   <s-text>
                     {location.name || shopify.i18n.translate("companySettingsLocationFallback")}
                     {mainLocation && mainLocation.id === location.id
                       ? ` (${shopify.i18n.translate("companySettingsMainLocationLabel")})`
                       : ""}
+                    {location.hasOrders
+                      ? ` (${shopify.i18n.translate("companySettingsLocationHasOrdersLabel")})`
+                      : ""}
                   </s-text>
-                  <s-text>
-                    {formatLocationAddress(location, shopify.i18n.translate)}
-                  </s-text>
-                </s-stack>
+                  <s-text>{formatLocationAddress(location, shopify.i18n.translate)}</s-text>
+                  <s-box padding="small-100">
+                    <s-button
+                      accessibilityLabel={shopify.i18n.translate("companySettingsDeleteLocationAccessibilityLabel", {
+                        name: location.name || shopify.i18n.translate("companySettingsLocationFallback"),
+                      })}
+                      disabled={
+                        deletingLocationId === location.id ||
+                        idsMatch(mainLocationId, location.id) ||
+                        location.hasOrders
+                      }
+                      onClick={() => handleDeleteLocation(location.id)}
+                      variant="secondary"
+                    >
+                      {deletingLocationId === location.id ? (
+                        <s-spinner accessibilityLabel={shopify.i18n.translate("companySettingsDeletingLocation")} />
+                      ) : (
+                        <s-icon size="small" type="delete" />
+                      )}
+                    </s-button>
+                  </s-box>
+                </s-grid>
               </s-box>
             </s-box>
           ))}
@@ -304,6 +530,9 @@ function Extension() {
   const usersContent = (
     <s-stack direction="block" gap="base">
       <s-text>{shopify.i18n.translate("companySettingsUsersDescription")}</s-text>
+      <s-button inlineSize="fit-content" variant="secondary" command="--show" commandFor="invite-user-modal">
+        {shopify.i18n.translate("companySettingsInviteUser")}
+      </s-button>
 
       {users.length === 0 ? (
         <s-text>{shopify.i18n.translate("companySettingsUsersEmpty")}</s-text>
@@ -338,7 +567,7 @@ function Extension() {
                       })}
                       command="--show"
                       commandFor="edit-user-modal"
-                      onClick={() => setActiveUser(user)}
+                      onClick={() => openEditUser(user)}
                       variant="secondary"
                     >
                       <s-icon size="small" type="edit" />
@@ -453,6 +682,12 @@ function Extension() {
 
               <s-stack direction="block" gap="tight">
                 <s-text>{shopify.i18n.translate("companySettingsAssignUsersLabel")}</s-text>
+                <s-checkbox
+                  checked={addAllUsersToLocation}
+                  disabled={users.length === 0}
+                  label={shopify.i18n.translate("companySettingsAssignAllUsersLabel")}
+                  onChange={(event) => setAddAllUsersToLocation(event.currentTarget.checked)}
+                />
                 {users.length === 0 ? (
                   <s-text>{shopify.i18n.translate("companySettingsAssignUsersEmpty")}</s-text>
                 ) : (
@@ -460,11 +695,12 @@ function Extension() {
                     <s-box key={user.id} border="base" borderRadius="base" padding="base">
                       <s-stack direction="block" gap="tight">
                         <s-checkbox
-                          checked={Boolean(selectedUserIds[user.id])}
+                          checked={addAllUsersToLocation || Boolean(selectedUserIds[user.id])}
+                          disabled={addAllUsersToLocation}
                           label={`${user.name} (${user.email})`}
                           onChange={(event) => toggleSelectedUser(user.id, event.currentTarget.checked)}
                         />
-                        {selectedUserIds[user.id] ? (
+                        {addAllUsersToLocation || selectedUserIds[user.id] ? (
                           <s-select
                             label={shopify.i18n.translate("companySettingsAssignRoleLabel")}
                             value={selectedUserRoles[user.id] || "buyer"}
@@ -489,12 +725,12 @@ function Extension() {
                 )}
               </s-stack>
 
-              <s-button disabled={isCreatingLocation} onClick={handleCreateLocation}>
+              <s-button inlineSize="fit-content" variant="secondary" disabled={isCreatingLocation} onClick={handleCreateLocation}>
                 {isCreatingLocation
                   ? shopify.i18n.translate("companySettingsCreatingLocation")
                   : shopify.i18n.translate("companySettingsCreateLocation")}
               </s-button>
-              <s-button command="--hide" commandFor="add-location-modal">
+              <s-button inlineSize="fit-content" variant="secondary" command="--hide" commandFor="add-location-modal">
                 {shopify.i18n.translate("close")}
               </s-button>
             </s-stack>
@@ -506,14 +742,143 @@ function Extension() {
         >
           <s-box padding="base">
             <s-stack direction="block" gap="base">
-              <s-text>
-                {activeUser
-                  ? shopify.i18n.translate("companySettingsEditUserBody", {
-                      name: activeUser.name,
-                    })
-                  : shopify.i18n.translate("companySettingsEditUserNoSelection")}
-              </s-text>
-              <s-button command="--hide" commandFor="edit-user-modal">
+              {editUserError ? <s-banner tone="critical">{editUserError}</s-banner> : null}
+              {editUserSuccess ? <s-banner tone="success">{editUserSuccess}</s-banner> : null}
+
+              <s-text>{shopify.i18n.translate("companySettingsEditUserBody", {
+                name: activeUser?.name || "",
+              })}</s-text>
+              <s-text>{activeUser?.email || shopify.i18n.translate("companySettingsEditUserNoSelection")}</s-text>
+
+              <s-checkbox
+                checked={editCompanyAdmin}
+                disabled={!activeUser}
+                label={shopify.i18n.translate("companySettingsInviteCompanyAdmin")}
+                onChange={(event) => setEditCompanyAdmin(event.currentTarget.checked)}
+              />
+
+              <s-stack direction="block" gap="tight">
+                <s-text>{shopify.i18n.translate("companySettingsInviteAssignmentsLabel")}</s-text>
+                {locations.map((location) => (
+                  <s-box key={location.id} border="base" borderRadius="base" padding="base">
+                    <s-stack direction="block" gap="tight">
+                      <s-checkbox
+                        checked={Boolean(selectedEditLocationIds[location.id])}
+                        disabled={!activeUser}
+                        label={location.name || shopify.i18n.translate("companySettingsLocationFallback")}
+                        onChange={(event) => toggleEditLocation(location.id, event.currentTarget.checked)}
+                      />
+                      {selectedEditLocationIds[location.id] ? (
+                        <s-select
+                          label={shopify.i18n.translate("companySettingsAssignRoleLabel")}
+                          value={selectedEditRoles[location.id] || "buyer"}
+                          onChange={(event) =>
+                            setSelectedEditRoles((currentValue) => ({
+                              ...currentValue,
+                              [location.id]: event.currentTarget.value,
+                            }))
+                          }
+                        >
+                          <s-option value="buyer">
+                            {shopify.i18n.translate("companySettingsRoleBuyer")}
+                          </s-option>
+                          <s-option value="admin">
+                            {shopify.i18n.translate("companySettingsRoleAdmin")}
+                          </s-option>
+                        </s-select>
+                      ) : null}
+                    </s-stack>
+                  </s-box>
+                ))}
+              </s-stack>
+
+              <s-button inlineSize="fit-content" variant="secondary" disabled={isUpdatingUser || !activeUser} onClick={handleUpdateUser}>
+                {isUpdatingUser
+                  ? shopify.i18n.translate("companySettingsUpdatingUser")
+                  : shopify.i18n.translate("companySettingsSaveUserAccess")}
+              </s-button>
+              <s-button inlineSize="fit-content" variant="secondary" command="--hide" commandFor="edit-user-modal">
+                {shopify.i18n.translate("close")}
+              </s-button>
+            </s-stack>
+          </s-box>
+        </s-modal>
+        <s-modal
+          id="invite-user-modal"
+          heading={shopify.i18n.translate("companySettingsInviteUser")}
+        >
+          <s-box padding="base">
+            <s-stack direction="block" gap="base">
+              {inviteError ? <s-banner tone="critical">{inviteError}</s-banner> : null}
+              {inviteSuccess ? <s-banner tone="success">{inviteSuccess}</s-banner> : null}
+
+              <s-text>{shopify.i18n.translate("companySettingsInviteUserBody")}</s-text>
+
+              <s-grid gridTemplateColumns="1fr 1fr">
+                <s-text-field
+                  label={shopify.i18n.translate("companySettingsInviteFirstName")}
+                  value={inviteFirstName}
+                  onInput={(event) => setInviteFirstName(event.currentTarget.value)}
+                />
+                <s-text-field
+                  label={shopify.i18n.translate("companySettingsInviteLastName")}
+                  value={inviteLastName}
+                  onInput={(event) => setInviteLastName(event.currentTarget.value)}
+                />
+              </s-grid>
+
+              <s-email-field
+                label={shopify.i18n.translate("companySettingsInviteEmail")}
+                value={inviteEmail}
+                onInput={(event) => setInviteEmail(event.currentTarget.value)}
+              />
+
+              <s-checkbox
+                checked={inviteCompanyAdmin}
+                label={shopify.i18n.translate("companySettingsInviteCompanyAdmin")}
+                onChange={(event) => setInviteCompanyAdmin(event.currentTarget.checked)}
+              />
+
+              <s-stack direction="block" gap="tight">
+                <s-text>{shopify.i18n.translate("companySettingsInviteAssignmentsLabel")}</s-text>
+                {locations.map((location) => (
+                  <s-box key={location.id} border="base" borderRadius="base" padding="base">
+                    <s-stack direction="block" gap="tight">
+                      <s-checkbox
+                        checked={Boolean(selectedInviteLocationIds[location.id])}
+                        label={location.name || shopify.i18n.translate("companySettingsLocationFallback")}
+                        onChange={(event) => toggleInviteLocation(location.id, event.currentTarget.checked)}
+                      />
+                      {selectedInviteLocationIds[location.id] ? (
+                        <s-select
+                          label={shopify.i18n.translate("companySettingsAssignRoleLabel")}
+                          value={selectedInviteRoles[location.id] || "buyer"}
+                          onChange={(event) =>
+                            setSelectedInviteRoles((currentValue) => ({
+                              ...currentValue,
+                              [location.id]: event.currentTarget.value,
+                            }))
+                          }
+                        >
+                          <s-option value="buyer">
+                            {shopify.i18n.translate("companySettingsRoleBuyer")}
+                          </s-option>
+                          <s-option value="admin">
+                            {shopify.i18n.translate("companySettingsRoleAdmin")}
+                          </s-option>
+                        </s-select>
+                      ) : null}
+                    </s-stack>
+                  </s-box>
+                ))}
+              </s-stack>
+
+              <s-button inlineSize="fit-content" variant="secondary" disabled={isInvitingUser} onClick={handleInviteUser}>
+                {isInvitingUser
+                  ? shopify.i18n.translate("companySettingsInvitingUser")
+                  : shopify.i18n.translate("companySettingsInviteUser")}
+              </s-button>
+              <s-button inlineSize="fit-content" variant="secondary" command="--hide" commandFor="invite-user-modal">
                 {shopify.i18n.translate("close")}
               </s-button>
             </s-stack>

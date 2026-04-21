@@ -6,11 +6,11 @@ import {
 } from "../modules/auth/api-error.server";
 import { AppError } from "../modules/auth/errors";
 import {
-  CreateCompanyLocationInputSchema,
-  DeleteCompanyLocationInputSchema,
+  InviteCompanyUserInputSchema,
+  UpdateCompanyUserInputSchema,
 } from "../modules/company/schemas/company.schema";
-import { createCompanyLocation } from "../modules/company/services/create-company-location.service";
-import { deleteCompanyLocation } from "../modules/company/services/delete-company-location.service";
+import { inviteCompanyUser } from "../modules/company/services/invite-company-user.service";
+import { updateCompanyUser } from "../modules/company/services/update-company-user.service";
 import {
   requireCustomerAccountServiceContext,
   requireOfflineAdminServiceContext,
@@ -19,7 +19,7 @@ import {
 function buildCustomerAccountCorsHeaders(request: Request): Headers {
   const origin = request.headers.get("origin");
   const headers = new Headers({
-    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Request-Id",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -30,6 +30,12 @@ function buildCustomerAccountCorsHeaders(request: Request): Headers {
   }
 
   return headers;
+}
+
+function getInvalidPayloadMessage(method: string) {
+  return method === "PATCH"
+    ? "Invalid company user update payload."
+    : "Invalid company user payload.";
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -61,40 +67,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
     let result;
 
-    if (request.method === "DELETE") {
-      const parseResult = DeleteCompanyLocationInputSchema.safeParse(payload);
+    if (request.method === "PATCH") {
+      const parseResult = UpdateCompanyUserInputSchema.safeParse(payload);
       if (!parseResult.success) {
         throw new AppError(
           "VALIDATION_FAILED",
-          "Invalid company location delete payload.",
+          getInvalidPayloadMessage(request.method),
           400,
           false,
           validationDetailsFromIssues(parseResult.error.issues),
         );
       }
 
-      result = await deleteCompanyLocation(
-        adminContext,
-        currentCustomerId,
-        parseResult.data,
-      );
+      result = await updateCompanyUser(adminContext, currentCustomerId, parseResult.data);
     } else {
-      const parseResult = CreateCompanyLocationInputSchema.safeParse(payload);
+      const parseResult = InviteCompanyUserInputSchema.safeParse(payload);
       if (!parseResult.success) {
         throw new AppError(
           "VALIDATION_FAILED",
-          "Invalid company location payload.",
+          getInvalidPayloadMessage(request.method),
           400,
           false,
           validationDetailsFromIssues(parseResult.error.issues),
         );
       }
 
-      result = await createCompanyLocation(
-        adminContext,
-        currentCustomerId,
-        parseResult.data,
-      );
+      result = await inviteCompanyUser(adminContext, currentCustomerId, parseResult.data);
     }
 
     return customerAccountContext.cors(
@@ -132,7 +130,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return Response.json(
     {
       ok: false,
-      message: "Use POST to create company locations or DELETE to remove a location.",
+      message: "Use POST to invite company users or PATCH to edit company users.",
     },
     {
       status: 405,

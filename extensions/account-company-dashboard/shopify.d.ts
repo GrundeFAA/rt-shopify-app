@@ -43,16 +43,16 @@ declare module './src/services/company-location-actions.service.js' {
 }
 
 //@ts-ignore
-declare module './src/customer-account-api/client.js' {
-  const shopify:
-    | import('@shopify/ui-extensions/customer-account.profile.company-details.render-after').Api
-    | import('@shopify/ui-extensions/customer-account.profile.company-location-staff.render-after').Api;
+declare module './src/services/company-user-actions.service.js' {
+  const shopify: import('@shopify/ui-extensions/customer-account.profile.company-details.render-after').Api;
   const globalThis: { shopify: typeof shopify };
 }
 
 //@ts-ignore
 declare module './src/customer-account-api/app-backend-client.js' {
-  const shopify: import('@shopify/ui-extensions/customer-account.profile.company-details.render-after').Api;
+  const shopify:
+    | import('@shopify/ui-extensions/customer-account.profile.company-details.render-after').Api
+    | import('@shopify/ui-extensions/customer-account.profile.company-location-staff.render-after').Api;
   const globalThis: { shopify: typeof shopify };
 }
 

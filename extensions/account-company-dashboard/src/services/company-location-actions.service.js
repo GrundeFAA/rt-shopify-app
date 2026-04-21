@@ -16,3 +16,14 @@ export async function createCompanyLocation({
     selectedUsers,
   });
 }
+
+export async function deleteCompanyLocation({companyId, companyLocationId}) {
+  return postToAppBackend(
+    "/api/customer-account/company/locations",
+    {
+      companyId,
+      companyLocationId,
+    },
+    {method: "DELETE"},
+  );
+}

@@ -6,11 +6,14 @@ import {
 } from "../modules/auth/api-error.server";
 import { AppError } from "../modules/auth/errors";
 import {
-  CreateCompanyLocationInputSchema,
-  DeleteCompanyLocationInputSchema,
+  CustomerAccountCompanySettingsLoadInputSchema,
+  UpdateCompanySettingsInputSchema,
 } from "../modules/company/schemas/company.schema";
-import { createCompanyLocation } from "../modules/company/services/create-company-location.service";
-import { deleteCompanyLocation } from "../modules/company/services/delete-company-location.service";
+import {
+  assertCustomerAccountCompanyAdmin,
+  getCustomerAccountCompanyDashboard,
+} from "../modules/company/services/customer-account-company-dashboard.service";
+import { updateCompanySettings } from "../modules/company/services/update-company-settings.service";
 import {
   requireCustomerAccountServiceContext,
   requireOfflineAdminServiceContext,
@@ -19,7 +22,7 @@ import {
 function buildCustomerAccountCorsHeaders(request: Request): Headers {
   const origin = request.headers.get("origin");
   const headers = new Headers({
-    "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Request-Id",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -30,6 +33,12 @@ function buildCustomerAccountCorsHeaders(request: Request): Headers {
   }
 
   return headers;
+}
+
+function getInvalidPayloadMessage(method: string) {
+  return method === "PATCH"
+    ? "Invalid company settings update payload."
+    : "Invalid company settings payload.";
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -59,38 +68,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       customerAccountContext.shop,
       request,
     );
-    let result;
 
-    if (request.method === "DELETE") {
-      const parseResult = DeleteCompanyLocationInputSchema.safeParse(payload);
+    let result;
+    if (request.method === "PATCH") {
+      const parseResult = UpdateCompanySettingsInputSchema.safeParse(payload);
       if (!parseResult.success) {
         throw new AppError(
           "VALIDATION_FAILED",
-          "Invalid company location delete payload.",
+          getInvalidPayloadMessage(request.method),
           400,
           false,
           validationDetailsFromIssues(parseResult.error.issues),
         );
       }
 
-      result = await deleteCompanyLocation(
+      await assertCustomerAccountCompanyAdmin(
         adminContext,
         currentCustomerId,
-        parseResult.data,
+        parseResult.data.companyId,
       );
+      result = await updateCompanySettings(adminContext, parseResult.data);
     } else {
-      const parseResult = CreateCompanyLocationInputSchema.safeParse(payload);
+      const parseResult = CustomerAccountCompanySettingsLoadInputSchema.safeParse(payload);
       if (!parseResult.success) {
         throw new AppError(
           "VALIDATION_FAILED",
-          "Invalid company location payload.",
+          getInvalidPayloadMessage(request.method),
           400,
           false,
           validationDetailsFromIssues(parseResult.error.issues),
         );
       }
 
-      result = await createCompanyLocation(
+      result = await getCustomerAccountCompanyDashboard(
         adminContext,
         currentCustomerId,
         parseResult.data,
@@ -132,7 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return Response.json(
     {
       ok: false,
-      message: "Use POST to create company locations or DELETE to remove a location.",
+      message: "Use POST to load company settings or PATCH to save company settings.",
     },
     {
       status: 405,
