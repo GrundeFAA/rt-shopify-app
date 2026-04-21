@@ -196,12 +196,26 @@ export const InviteCompanyUserAssignmentSchema = z.object({
   role: z.enum(SHOPIFY_COMPANY_LOCATION_ROLE_VALUES),
 });
 
+function hasDuplicateCompanyLocationAssignments(
+  assignments: Array<{ companyLocationId: string }>,
+): boolean {
+  return new Set(assignments.map((assignment) => assignment.companyLocationId)).size !== assignments.length;
+}
+
 export const InviteCompanyUserInputSchema = CompanyIdInputSchema.extend({
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
   email: z.string().trim().email(),
   companyAdmin: z.boolean().default(false),
   assignments: z.array(InviteCompanyUserAssignmentSchema).min(1),
+}).superRefine((value, ctx) => {
+  if (hasDuplicateCompanyLocationAssignments(value.assignments)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Each location can only be assigned once.",
+      path: ["assignments"],
+    });
+  }
 });
 
 export const InviteCompanyUserResponseSchema = z.object({
@@ -216,6 +230,14 @@ export const UpdateCompanyUserInputSchema = CompanyIdInputSchema.extend({
   companyAdmin: z.boolean().default(false),
   customerId: ShopifyIdSchema,
   assignments: z.array(InviteCompanyUserAssignmentSchema).min(1),
+}).superRefine((value, ctx) => {
+  if (hasDuplicateCompanyLocationAssignments(value.assignments)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Each location can only be assigned once.",
+      path: ["assignments"],
+    });
+  }
 });
 
 export const UpdateCompanyUserResponseSchema = z.object({

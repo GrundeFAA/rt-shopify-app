@@ -30,9 +30,19 @@ function buildCustomerAccountCorsHeaders(request: Request): Headers {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   let customerAccountContext;
+  const allowedMethods = new Set(["POST"]);
 
   try {
     customerAccountContext = await requireCustomerAccountServiceContext(request);
+
+    if (!allowedMethods.has(request.method)) {
+      throw new AppError(
+        "VALIDATION_FAILED",
+        "Method not allowed. Use POST to load company location members.",
+        405,
+        false,
+      );
+    }
 
     let payload;
     try {
@@ -55,7 +65,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const currentCustomerId = customerAccountContext.sessionToken.sub;
     if (!currentCustomerId || typeof currentCustomerId !== "string") {
       throw new AppError(
-        "AUTH_FORBIDDEN",
+        "AUTH_UNAUTHENTICATED",
         "Missing authenticated customer identity.",
         401,
         false,

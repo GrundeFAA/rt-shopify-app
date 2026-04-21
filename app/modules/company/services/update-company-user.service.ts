@@ -226,9 +226,11 @@ export async function updateCompanyUser(
     );
   }
 
-  const validLocationIds = new Set(company.locations.nodes.map((location) => location.id));
   for (const assignment of input.assignments) {
-    if (!validLocationIds.has(assignment.companyLocationId)) {
+    const hasMatchingLocation = company.locations.nodes.some((location) =>
+      idsMatch(location.id, assignment.companyLocationId),
+    );
+    if (!hasMatchingLocation) {
       throw new AppError(
         "VALIDATION_FAILED",
         "Selected location does not belong to this company.",
@@ -374,6 +376,16 @@ export async function updateCompanyUser(
   const nextAdministratorIds = input.companyAdmin
     ? [...new Set([...administratorIds, input.customerId])]
     : administratorIds.filter((administratorId) => !idsMatch(administratorId, input.customerId));
+
+  if (nextAdministratorIds.length === 0) {
+    throw new AppError(
+      "VALIDATION_FAILED",
+      "Company must have at least one administrator.",
+      400,
+      false,
+      { companyId: company.id, customerId: input.customerId },
+    );
+  }
 
   await executeAdminGraphql({
     context,

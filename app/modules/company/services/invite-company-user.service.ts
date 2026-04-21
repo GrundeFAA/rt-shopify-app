@@ -282,9 +282,11 @@ export async function inviteCompanyUser(
     );
   }
 
-  const validLocationIds = new Set(company.locations.nodes.map((location) => location.id));
   for (const assignment of input.assignments) {
-    if (!validLocationIds.has(assignment.companyLocationId)) {
+    const hasMatchingLocation = company.locations.nodes.some((location) =>
+      idsMatch(location.id, assignment.companyLocationId),
+    );
+    if (!hasMatchingLocation) {
       throw new AppError(
         "VALIDATION_FAILED",
         "Selected location does not belong to this company.",

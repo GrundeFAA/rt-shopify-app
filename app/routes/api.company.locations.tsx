@@ -9,6 +9,8 @@ import {
 } from "../modules/shopify/admin.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  let context: Awaited<ReturnType<typeof requireAdminServiceContext>> | null = null;
+
   try {
     const parseResult = CompanyIdInputSchema.safeParse({
       companyId: new URL(request.url).searchParams.get("companyId"),
@@ -24,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
 
-    const context = await requireAdminServiceContext(request);
+    context = await requireAdminServiceContext(request);
     const result = await getCompanyLocations(context, parseResult.data);
 
     return applyAdminCors(
@@ -37,6 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }),
     );
   } catch (error) {
-    return toApiErrorResponse(error, request);
+    const errorResponse = toApiErrorResponse(error, request);
+    return context ? applyAdminCors(context, errorResponse) : errorResponse;
   }
 };

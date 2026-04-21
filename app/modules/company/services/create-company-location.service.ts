@@ -169,6 +169,19 @@ function idsMatch(leftId: string | null | undefined, rightId: string | null | un
   return leftId === rightId || leftId.endsWith(`/${rightId}`) || rightId.endsWith(`/${leftId}`);
 }
 
+function findCompanyContactIdByCustomerId(
+  contactIdByCustomerId: Map<string, string>,
+  customerId: string,
+): string | null {
+  for (const [contactCustomerId, companyContactId] of contactIdByCustomerId.entries()) {
+    if (idsMatch(contactCustomerId, customerId)) {
+      return companyContactId;
+    }
+  }
+
+  return null;
+}
+
 function getAdministratorIds(company: ManagedCompany) {
   const fromReferences =
     company.administrators?.references?.nodes.map((node) => node.id).filter(Boolean) ?? [];
@@ -300,7 +313,10 @@ export async function createCompanyLocation(
   );
 
   for (const selectedUser of input.selectedUsers) {
-    const companyContactId = contactIdByCustomerId.get(selectedUser.customerId);
+    const companyContactId = findCompanyContactIdByCustomerId(
+      contactIdByCustomerId,
+      selectedUser.customerId,
+    );
     if (!companyContactId) {
       throw new AppError(
         "VALIDATION_FAILED",
