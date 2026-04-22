@@ -1,0 +1,27 @@
+# Learn more about configuring your Customer account UI extension:
+# https://shopify.dev/api/customer-account-ui-extensions/unstable/configuration
+
+api_version = "2026-01"
+
+[[extensions]]
+name = "account-company-onboarding"
+handle = "account-company-onboarding"
+
+uid = "0e30d9c0-6904-4adb-3b54-c4bf0004baa77865012c"
+
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/CompanyOnboardingBlock.jsx"
+target = "customer-account.profile.block.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "app_base_url"
+type = "single_line_text_field"
+name = "App base URL"
+description = "Base URL for backend requests from the customer account extension."
