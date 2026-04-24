@@ -11,6 +11,7 @@ import {
 } from "../schemas/register-company-existing-customer.schema";
 import {
   COMPANY_ASSIGN_CUSTOMER_AS_CONTACT_MUTATION,
+  COMPANY_ASSIGN_MAIN_CONTACT_MUTATION,
   COMPANY_BY_ID_QUERY,
   COMPANY_CONTACT_ASSIGN_ROLES_MUTATION,
   COMPANY_CREATE_MUTATION,
@@ -36,6 +37,7 @@ const CompanyWithBasicIdentitySchema = z.object({
 
 const CompanyContactSummarySchema = z.object({
   id: z.string(),
+  isMainContact: z.boolean().optional(),
   customer: z
     .object({
       id: z.string(),
@@ -150,6 +152,7 @@ const CompanyAssignCustomerSchema = z.object({
     companyContact: z
       .object({
         id: z.string(),
+        isMainContact: z.boolean().optional(),
         customer: z
           .object({
             id: z.string(),
@@ -159,6 +162,24 @@ const CompanyAssignCustomerSchema = z.object({
           .optional(),
       })
       .nullable(),
+    userErrors: z.array(
+      z.object({
+        field: z.array(z.union([z.string(), z.number()])).nullable().optional(),
+        message: z.string(),
+        code: z.string().nullable().optional(),
+      }),
+    ),
+  }),
+});
+
+const CompanyAssignMainContactSchema = z.object({
+  companyAssignMainContact: z.object({
+    company: z
+      .object({
+        id: z.string(),
+      })
+      .nullable()
+      .optional(),
     userErrors: z.array(
       z.object({
         field: z.array(z.union([z.string(), z.number()])).nullable().optional(),
@@ -454,10 +475,34 @@ async function ensureCompanyContact(
   return {
     companyContact: {
       ...data.companyAssignCustomerAsContact.companyContact,
+      isMainContact: data.companyAssignCustomerAsContact.companyContact.isMainContact ?? false,
       roleAssignments: { nodes: [] },
     },
     created: true,
   };
+}
+
+async function ensureMainCompanyContact(
+  context: AdminServiceContext,
+  company: CompanySummary,
+  companyContact: CompanySummary["contacts"]["nodes"][number],
+) {
+  if (companyContact.isMainContact) {
+    return;
+  }
+
+  await executeAdminGraphql({
+    context,
+    document: COMPANY_ASSIGN_MAIN_CONTACT_MUTATION,
+    operationName: "RegisterCompanyMainContactExistingCustomer",
+    fallbackMessage: "Could not set company main contact.",
+    dataSchema: CompanyAssignMainContactSchema,
+    userErrorPath: ["companyAssignMainContact"],
+    variables: {
+      companyId: company.id,
+      companyContactId: companyContact.id,
+    },
+  });
 }
 
 async function ensureLocationAdminRole(
@@ -588,6 +633,7 @@ export async function registerCompanyForExistingCustomer(
 
   const { location, created: createdLocation } = await ensureLocation(context, company, payload);
   const { companyContact } = await ensureCompanyContact(context, company, canonicalCustomerId);
+  await ensureMainCompanyContact(context, company, companyContact);
 
   await ensureLocationAdminRole(
     context,

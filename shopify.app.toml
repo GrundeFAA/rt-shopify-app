@@ -2,7 +2,7 @@
 
 client_id = "2b23a01a718035df4fab277d7223e139"
 name = "rt-app"
-application_url = "https://rt-shopify-app-production.up.railway.app"
+application_url = "https://rt-shopify-app.up.railway.app"
 embedded = true
 
 [build]
@@ -31,13 +31,13 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://rt-shopify-app-production.up.railway.app/auth/callback",
-  "https://rt-shopify-app-production.up.railway.app/auth/shopify/callback",
+  "https://rt-shopify-app.up.railway.app/auth/callback",
+  "https://rt-shopify-app.up.railway.app/auth/shopify/callback",
   "http://localhost:3000/auth/callback",
   "http://localhost:3000/auth/shopify/callback"
 ]
 
 [app_proxy]
-url = "https://rt-shopify-app-production.up.railway.app/api/b2b-proxy"
+url = "https://rt-shopify-app.up.railway.app/api/b2b-proxy"
 subpath = "rt"
 prefix = "apps"

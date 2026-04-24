@@ -41,13 +41,7 @@ function Extension() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   if (existingCompanyId) {
-    return (
-      <s-section heading={shopify.i18n.translate("companyOnboardingTitle")}>
-        <s-banner tone="info">
-          {shopify.i18n.translate("companyOnboardingAlreadyCompany")}
-        </s-banner>
-      </s-section>
-    );
+    return null;
   }
 
   function validate() {

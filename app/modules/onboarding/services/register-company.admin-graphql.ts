@@ -90,6 +90,7 @@ export const COMPANY_BY_ID_QUERY = `#graphql
       contacts(first: 50) {
         nodes {
           id
+          isMainContact
           customer {
             id
             email
@@ -138,10 +139,25 @@ export const COMPANY_ASSIGN_CUSTOMER_AS_CONTACT_MUTATION = `#graphql
     companyAssignCustomerAsContact(companyId: $companyId, customerId: $customerId) {
       companyContact {
         id
+        isMainContact
         customer {
           id
           email
         }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const COMPANY_ASSIGN_MAIN_CONTACT_MUTATION = `#graphql
+  mutation RegisterCompanyMainContact($companyId: ID!, $companyContactId: ID!) {
+    companyAssignMainContact(companyId: $companyId, companyContactId: $companyContactId) {
+      company {
+        id
       }
       userErrors {
         field
