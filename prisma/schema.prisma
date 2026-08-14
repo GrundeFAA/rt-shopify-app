@@ -32,3 +32,13 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model CompanyContactCustomer {
+  shop             String
+  companyContactId String
+  customerId       String
+  createdAt        DateTime @default(now())
+
+  @@id([shop, companyContactId])
+  @@index([shop, customerId])
+}
