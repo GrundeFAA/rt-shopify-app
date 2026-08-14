@@ -42,6 +42,7 @@
   "companySettingsInviteValidationError": "Skriv inn fornavn, etternavn og e-post for du inviterer en bruker.",
   "companySettingsInviteAssignmentsRequired": "Velg minst en lokasjonstildeling for den nye brukeren.",
   "companySettingsInviteError": "Kunne ikke opprette den nye brukeren.",
+  "companySettingsInviteEmailExists": "Det finnes allerede en kundekonto med denne e-postadressen. Kontakt en butikkadministrator for å knytte brukeren til bedriften.",
   "companySettingsInviteSuccess": "Bruker opprettet og tilgang tildelt. Informer brukeren om at de na kan logge inn med e-postadressen sin.",
   "companySettingsInvitingUser": "Oppretter bruker...",
   "companySettingsAddLocation": "Legg til lokasjon",

@@ -301,7 +301,7 @@ export async function inviteCompanyUser(
   if (existingCustomer) {
     throw new AppError(
       "CUSTOMER_ALREADY_EXISTS",
-      "An account with this email already exists. Use edit access instead.",
+      "An account with this email already exists. Ask a store admin to add this user to the company.",
       409,
       false,
       {

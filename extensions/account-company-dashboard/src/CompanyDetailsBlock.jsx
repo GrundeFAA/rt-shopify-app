@@ -369,9 +369,11 @@ function Extension() {
       await loadCompanySettings();
     } catch (error) {
       setInviteError(
-        error instanceof Error && error.message
-          ? error.message
-          : shopify.i18n.translate("companySettingsInviteError"),
+        error?.code === "CUSTOMER_ALREADY_EXISTS"
+          ? shopify.i18n.translate("companySettingsInviteEmailExists")
+          : error instanceof Error && error.message
+            ? error.message
+            : shopify.i18n.translate("companySettingsInviteError"),
       );
     } finally {
       setIsInvitingUser(false);

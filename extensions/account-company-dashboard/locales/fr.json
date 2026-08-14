@@ -42,6 +42,7 @@
   "companySettingsInviteValidationError": "Enter first name, last name, and email before inviting a user.",
   "companySettingsInviteAssignmentsRequired": "Select at least one location assignment for the new user.",
   "companySettingsInviteError": "Could not create the new user.",
+  "companySettingsInviteEmailExists": "An account with this email already exists. Ask a store admin to add this user to the company.",
   "companySettingsInviteSuccess": "User created and access assigned. Tell them they can now sign in with their email.",
   "companySettingsInvitingUser": "Creating user...",
   "companySettingsAddLocation": "Add location",
