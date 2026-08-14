@@ -88,6 +88,17 @@ const CompanyManagementDataSchema = z.object({
               })
               .nullable()
               .optional(),
+            buyerExperienceConfiguration: z
+              .object({
+                paymentTermsTemplate: z
+                  .object({
+                    id: z.string(),
+                  })
+                  .nullable()
+                  .optional(),
+              })
+              .nullable()
+              .optional(),
             billingAddress: CompanyAddressSchema,
             shippingAddress: CompanyAddressSchema,
           }),
@@ -192,8 +203,12 @@ function getAdministratorIds(company: ManagedCompany) {
   return [...new Set([...fromReferences, ...fromJson])];
 }
 
-function mapInheritedBillingAddress(address: ManagedCompanyAddress | null | undefined) {
+function mapInheritedBillingAddress(
+  address: ManagedCompanyAddress | null | undefined,
+  companyName: string,
+) {
   return {
+    company: companyName,
     address1: address?.address1 ?? "",
     address2: address?.address2 ?? "",
     city: address?.city ?? "",
@@ -203,8 +218,12 @@ function mapInheritedBillingAddress(address: ManagedCompanyAddress | null | unde
   };
 }
 
-function mapDeliveryAddress(address: CreateCompanyLocationInput["deliveryAddress"]) {
+function mapDeliveryAddress(
+  address: CreateCompanyLocationInput["deliveryAddress"],
+  companyName: string,
+) {
   return {
+    company: companyName,
     address1: address.line1,
     address2: address.line2 || undefined,
     city: address.city,
@@ -270,6 +289,9 @@ export async function createCompanyLocation(
     );
   }
 
+  const inheritedPaymentTermsTemplateId =
+    fallbackMainLocation.buyerExperienceConfiguration?.paymentTermsTemplate?.id ?? null;
+
   const createResult = await executeAdminGraphql({
     context,
     document: COMPANY_LOCATION_CREATE_MUTATION,
@@ -284,8 +306,16 @@ export async function createCompanyLocation(
         taxRegistrationId: fallbackMainLocation.taxSettings?.taxRegistrationId ?? undefined,
         billingAddress: mapInheritedBillingAddress(
           fallbackMainLocation.billingAddress ?? fallbackMainLocation.shippingAddress,
+          company.name,
         ),
-        shippingAddress: mapDeliveryAddress(input.deliveryAddress),
+        shippingAddress: mapDeliveryAddress(input.deliveryAddress, company.name),
+        ...(inheritedPaymentTermsTemplateId
+          ? {
+              buyerExperienceConfiguration: {
+                paymentTermsTemplateId: inheritedPaymentTermsTemplateId,
+              },
+            }
+          : {}),
       },
     },
   });

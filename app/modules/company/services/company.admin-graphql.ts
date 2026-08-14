@@ -277,6 +277,11 @@ export const COMPANY_MAIN_LOCATION_QUERY = `#graphql
           taxSettings {
             taxRegistrationId
           }
+          buyerExperienceConfiguration {
+            paymentTermsTemplate {
+              id
+            }
+          }
           billingAddress {
             address1
             address2
