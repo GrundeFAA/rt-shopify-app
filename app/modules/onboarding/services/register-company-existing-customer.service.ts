@@ -239,8 +239,12 @@ type ExistingCompanyLocationMatch = {
   locationName: string;
 };
 
-function mapAddress(address: RegisterCompanyExistingCustomerInput["company"]["invoice"]["address"]) {
+function mapAddress(
+  address: RegisterCompanyExistingCustomerInput["company"]["invoice"]["address"],
+  companyName: string,
+) {
   return {
+    company: companyName,
     address1: address.line1,
     address2: address.line2 || undefined,
     city: address.city,
@@ -368,8 +372,8 @@ async function createCompany(
         companyLocation: {
           name: payload.company.location_name,
           taxRegistrationId: normalizeOrganizationNumber(payload.company.organization_number),
-          billingAddress: mapAddress(payload.company.invoice.address),
-          shippingAddress: mapAddress(deliveryAddress),
+          billingAddress: mapAddress(payload.company.invoice.address, payload.company.name),
+          shippingAddress: mapAddress(deliveryAddress, payload.company.name),
         },
       },
     },
@@ -414,8 +418,8 @@ async function ensureLocation(
       input: {
         name: payload.company.location_name,
         taxRegistrationId: normalizeOrganizationNumber(payload.company.organization_number),
-        billingAddress: mapAddress(payload.company.invoice.address),
-        shippingAddress: mapAddress(deliveryAddress),
+        billingAddress: mapAddress(payload.company.invoice.address, payload.company.name),
+        shippingAddress: mapAddress(deliveryAddress, payload.company.name),
       },
     },
   });
