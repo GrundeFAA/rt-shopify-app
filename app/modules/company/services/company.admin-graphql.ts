@@ -64,6 +64,22 @@ export const UPDATE_COMPANY_SETTINGS_MUTATION = `#graphql
   }
 `;
 
+export const DELETE_COMPANY_METAFIELDS_MUTATION = `#graphql
+  mutation DeleteCompanyMetafields($metafields: [MetafieldIdentifierInput!]!) {
+    metafieldsDelete(metafields: $metafields) {
+      deletedMetafields {
+        key
+        namespace
+        ownerId
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 export const COMPANY_USERS_QUERY = `#graphql
   query CompanyUsers($companyId: ID!) {
     company(id: $companyId) {

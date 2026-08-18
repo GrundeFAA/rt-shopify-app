@@ -209,3 +209,22 @@ export async function executeAdminGraphql<TData>({
 export function toShopifyGid(resourceName: string, id: string): string {
   return id.startsWith("gid://") ? id : `gid://shopify/${resourceName}/${id}`;
 }
+
+export type MetafieldSetInput = {
+  ownerId: string;
+  namespace: string;
+  key: string;
+  type: string;
+  value: string;
+};
+
+/**
+ * Shopify rejects an entire metafieldsSet batch with "Value can't be blank." when any
+ * single value is empty, writing none of the metafields. Optional values must therefore
+ * be omitted from the batch rather than sent as an empty string.
+ */
+export function withoutBlankMetafields(
+  metafields: MetafieldSetInput[],
+): MetafieldSetInput[] {
+  return metafields.filter((metafield) => metafield.value.trim() !== "");
+}

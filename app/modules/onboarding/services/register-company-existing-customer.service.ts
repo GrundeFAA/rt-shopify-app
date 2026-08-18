@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { AppError } from "../../auth/errors";
 import type { AdminServiceContext } from "../../shopify/admin.server";
-import { executeAdminGraphql, toShopifyGid } from "../../shopify/admin.server";
+import {
+  executeAdminGraphql,
+  toShopifyGid,
+  withoutBlankMetafields,
+} from "../../shopify/admin.server";
 import {
   normalizeOrganizationNumber,
   RegisterCompanyExistingCustomerInputSchema,
@@ -573,7 +577,7 @@ async function syncCompanyMetafields(
     dataSchema: CompanyMetafieldsSetSchema,
     userErrorPath: ["metafieldsSet"],
     variables: {
-      metafields: [
+      metafields: withoutBlankMetafields([
         {
           ownerId: company.id,
           namespace: "custom",
@@ -602,7 +606,7 @@ async function syncCompanyMetafields(
           type: "list.customer_reference",
           value: JSON.stringify(administratorIds),
         },
-      ],
+      ]),
     },
   });
 }
