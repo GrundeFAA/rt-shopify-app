@@ -194,6 +194,30 @@ export const COMPANY_CONTACT_ASSIGN_ROLES_MUTATION = `#graphql
   }
 `;
 
+export const COMPANY_DELETE_MUTATION = `#graphql
+  mutation RollbackRegisteredCompany($companyId: ID!) {
+    companyDelete(id: $companyId) {
+      deletedCompanyId
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const CUSTOMER_DELETE_MUTATION = `#graphql
+  mutation RollbackRegisteredCustomer($customerId: ID!) {
+    customerDelete(input: { id: $customerId }) {
+      deletedCustomerId
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 export const COMPANY_METAFIELDS_SET_MUTATION = `#graphql
   mutation RegisterCompanyMetafields($metafields: [MetafieldsSetInput!]!) {
     metafieldsSet(metafields: $metafields) {

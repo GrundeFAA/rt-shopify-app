@@ -13,6 +13,7 @@ import {
   type RegisterCompanyExistingCustomerInput,
   type RegisterCompanyExistingCustomerSuccess,
 } from "../schemas/register-company-existing-customer.schema";
+import { rollbackPartialRegistration } from "./register-company-rollback";
 import {
   COMPANY_ASSIGN_CUSTOMER_AS_CONTACT_MUTATION,
   COMPANY_ASSIGN_MAIN_CONTACT_MUTATION,
@@ -356,10 +357,14 @@ async function getCompanyById(
   return data.company;
 }
 
-async function createCompany(
+/**
+ * Returns the new company id rather than the loaded company, so the caller holds the id
+ * before any follow-up call can fail and leave the company behind.
+ */
+async function createCompanyRecord(
   context: AdminServiceContext,
   payload: RegisterCompanyExistingCustomerInput,
-) {
+): Promise<string> {
   const deliveryAddress = getDeliveryAddress(payload);
   const data = await executeAdminGraphql({
     context,
@@ -393,7 +398,7 @@ async function createCompany(
     );
   }
 
-  return getCompanyById(context, data.companyCreate.company.id);
+  return data.companyCreate.company.id;
 }
 
 async function ensureLocation(
@@ -636,29 +641,38 @@ export async function registerCompanyForExistingCustomer(
   }
 
   const canonicalCustomerId = toShopifyGid("Customer", customerId);
-  const company = await createCompany(context, payload);
-  const createdCompany = true;
+  let createdCompanyId: string | undefined;
 
-  const { location, created: createdLocation } = await ensureLocation(context, company, payload);
-  const { companyContact } = await ensureCompanyContact(context, company, canonicalCustomerId);
-  await ensureMainCompanyContact(context, company, companyContact);
+  try {
+    createdCompanyId = await createCompanyRecord(context, payload);
+    const company = await getCompanyById(context, createdCompanyId);
 
-  await ensureLocationAdminRole(
-    context,
-    company,
-    companyContact.id,
-    location.id,
-    companyContact.roleAssignments.nodes,
-  );
+    const { location, created: createdLocation } = await ensureLocation(context, company, payload);
+    const { companyContact } = await ensureCompanyContact(context, company, canonicalCustomerId);
+    await ensureMainCompanyContact(context, company, companyContact);
 
-  await syncCompanyMetafields(context, company, payload, location.id, canonicalCustomerId);
+    await ensureLocationAdminRole(
+      context,
+      company,
+      companyContact.id,
+      location.id,
+      companyContact.roleAssignments.nodes,
+    );
 
-  return RegisterCompanyExistingCustomerSuccessSchema.parse({
-    ok: true,
-    customerId: canonicalCustomerId,
-    companyId: company.id,
-    companyLocationId: location.id,
-    createdCompany,
-    createdLocation,
-  });
+    await syncCompanyMetafields(context, company, payload, location.id, canonicalCustomerId);
+
+    return RegisterCompanyExistingCustomerSuccessSchema.parse({
+      ok: true,
+      customerId: canonicalCustomerId,
+      companyId: company.id,
+      companyLocationId: location.id,
+      createdCompany: true,
+      createdLocation,
+    });
+  } catch (error) {
+    // Only the company is rolled back here: the customer signed in and existed beforehand.
+    await rollbackPartialRegistration(context, { companyId: createdCompanyId });
+
+    throw error;
+  }
 }

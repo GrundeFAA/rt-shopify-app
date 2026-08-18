@@ -9,6 +9,7 @@ import {
   type RegisterCompanyPayload,
   type RegisterCompanySuccess,
 } from "../schemas/register-company.schema";
+import { rollbackPartialRegistration } from "./register-company-rollback";
 import {
   COMPANY_LOCATIONS_FOR_TAX_ID_QUERY,
   COMPANY_ASSIGN_CUSTOMER_AS_CONTACT_MUTATION,
@@ -443,10 +444,14 @@ async function getCompanyById(
   return data.company;
 }
 
-async function createCompany(
+/**
+ * Returns the new company id rather than the loaded company, so the caller holds the id
+ * before any follow-up call can fail and leave the company behind.
+ */
+async function createCompanyRecord(
   context: AdminServiceContext,
   payload: RegisterCompanyPayload,
-) {
+): Promise<string> {
   const deliveryAddress = getDeliveryAddress(payload);
   const data = await executeAdminGraphql({
     context,
@@ -480,7 +485,7 @@ async function createCompany(
     );
   }
 
-  return getCompanyById(context, data.companyCreate.company.id);
+  return data.companyCreate.company.id;
 }
 
 async function ensureLocation(
@@ -737,30 +742,43 @@ export async function registerCompany(
   }
 
   const customer = await createCustomer(context, payload);
-  const company = await createCompany(context, payload);
-  const createdCompany = true;
+  let createdCompanyId: string | undefined;
 
-  const { location, created: createdLocation } = await ensureLocation(context, company, payload);
-  const { companyContact } = await ensureCompanyContact(context, company, customer.id);
-  await ensureMainCompanyContact(context, company, companyContact);
+  try {
+    createdCompanyId = await createCompanyRecord(context, payload);
+    const company = await getCompanyById(context, createdCompanyId);
 
-  await ensureLocationAdminRole(
-    context,
-    company,
-    companyContact.id,
-    location.id,
-    companyContact.roleAssignments.nodes,
-  );
+    const { location, created: createdLocation } = await ensureLocation(context, company, payload);
+    const { companyContact } = await ensureCompanyContact(context, company, customer.id);
+    await ensureMainCompanyContact(context, company, companyContact);
 
-  await syncCompanyMetafields(context, company, payload, location.id, customer.id);
+    await ensureLocationAdminRole(
+      context,
+      company,
+      companyContact.id,
+      location.id,
+      companyContact.roleAssignments.nodes,
+    );
 
-  return RegisterCompanySuccessSchema.parse({
-    ok: true,
-    customerId: customer.id,
-    companyId: company.id,
-    companyLocationId: location.id,
-    createdCustomer: !existingCustomer,
-    createdCompany,
-    createdLocation,
-  });
+    await syncCompanyMetafields(context, company, payload, location.id, customer.id);
+
+    return RegisterCompanySuccessSchema.parse({
+      ok: true,
+      customerId: customer.id,
+      companyId: company.id,
+      companyLocationId: location.id,
+      createdCustomer: !existingCustomer,
+      createdCompany: true,
+      createdLocation,
+    });
+  } catch (error) {
+    // Leave nothing behind, otherwise the org number lookup above rejects the retry with
+    // "contact your company administrator" for a company that has no administrator yet.
+    await rollbackPartialRegistration(context, {
+      companyId: createdCompanyId,
+      customerId: customer.id,
+    });
+
+    throw error;
+  }
 }
