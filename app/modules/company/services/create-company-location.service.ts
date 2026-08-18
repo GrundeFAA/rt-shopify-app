@@ -208,7 +208,7 @@ function mapInheritedBillingAddress(
   companyName: string,
 ) {
   return {
-    company: companyName,
+    recipient: companyName,
     address1: address?.address1 ?? "",
     address2: address?.address2 ?? "",
     city: address?.city ?? "",
@@ -223,7 +223,7 @@ function mapDeliveryAddress(
   companyName: string,
 ) {
   return {
-    company: companyName,
+    recipient: companyName,
     address1: address.line1,
     address2: address.line2 || undefined,
     city: address.city,

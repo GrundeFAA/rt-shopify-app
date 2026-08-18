@@ -244,7 +244,7 @@ function mapAddress(
   companyName: string,
 ) {
   return {
-    company: companyName,
+    recipient: companyName,
     address1: address.line1,
     address2: address.line2 || undefined,
     city: address.city,
