@@ -23,7 +23,6 @@ function Extension() {
   const existingCompanyId = shopify.authenticatedAccount?.purchasingCompany?.value?.company?.id;
   const [companyName, setCompanyName] = useState("");
   const [orgNumber, setOrgNumber] = useState("");
-  const [locationName, setLocationName] = useState("");
   const [invoiceEmail, setInvoiceEmail] = useState("");
   const [invoiceElectronic, setInvoiceElectronic] = useState(false);
   const [invoiceLine1, setInvoiceLine1] = useState("");
@@ -53,10 +52,6 @@ function Extension() {
     const normalized = normalizeOrgNumber(orgNumber);
     if (normalized.length !== 9) {
       nextErrors.orgNumber = shopify.i18n.translate("companyOnboardingOrgNumberInvalid");
-    }
-
-    if (!locationName.trim()) {
-      nextErrors.locationName = shopify.i18n.translate("companyOnboardingLocationNameRequired");
     }
 
     if (!isValidEmail(invoiceEmail.trim())) {
@@ -106,7 +101,7 @@ function Extension() {
         company: {
           name: companyName.trim(),
           organization_number: normalizeOrgNumber(orgNumber),
-          location_name: locationName.trim(),
+          location_name: "Hovedlokasjon",
           invoice: {
             electronic_invoice: invoiceElectronic,
             email: invoiceEmail.trim(),
@@ -175,12 +170,6 @@ function Extension() {
               label={shopify.i18n.translate("companyOnboardingOrgNumberLabel")}
               value={orgNumber}
               onInput={(event) => setOrgNumber(event.currentTarget.value)}
-            />
-            <s-text-field
-              error={fieldErrors.locationName}
-              label={shopify.i18n.translate("companyOnboardingLocationNameLabel")}
-              value={locationName}
-              onInput={(event) => setLocationName(event.currentTarget.value)}
             />
 
             <s-checkbox
