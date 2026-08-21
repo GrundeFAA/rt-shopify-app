@@ -7,6 +7,8 @@ import type {
   InviteCompanyUserResponse,
 } from "../schemas/company.schema";
 import {
+  CompanyAdministratorsMetafieldSchema,
+  getAdministratorIdsFromMetafield,
   InviteCompanyUserResponseSchema,
   SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP,
   SHOPIFY_COMPANY_LOCATION_ROLE_VALUES,
@@ -30,20 +32,7 @@ const CompanyManagementDataSchema = z.object({
     .object({
       id: z.string(),
       name: z.string(),
-      administrators: z
-        .object({
-          jsonValue: z.array(z.string()).nullable().optional(),
-          references: z.object({
-            nodes: z.array(
-              z.object({
-                __typename: z.literal("Customer"),
-                id: z.string(),
-              }),
-            ),
-          }),
-        })
-        .nullable()
-        .optional(),
+      administrators: CompanyAdministratorsMetafieldSchema,
       contactRoles: z.object({
         nodes: z.array(CompanyRoleSchema),
       }),
@@ -179,13 +168,7 @@ function idsMatch(leftId: string | null | undefined, rightId: string | null | un
 }
 
 function getAdministratorIds(company: ManagedCompany) {
-  const fromReferences =
-    company.administrators?.references?.nodes.map((node) => node.id).filter(Boolean) ?? [];
-  const fromJson = Array.isArray(company.administrators?.jsonValue)
-    ? company.administrators.jsonValue.filter(Boolean)
-    : [];
-
-  return [...new Set([...fromReferences, ...fromJson])];
+  return getAdministratorIdsFromMetafield(company.administrators);
 }
 
 function buildCustomerEmailSearch(email: string): string {

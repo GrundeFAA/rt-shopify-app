@@ -6,7 +6,11 @@ import type {
   DeleteCompanyLocationInput,
   DeleteCompanyLocationResponse,
 } from "../schemas/company.schema";
-import { DeleteCompanyLocationResponseSchema } from "../schemas/company.schema";
+import {
+  CompanyAdministratorsMetafieldSchema,
+  DeleteCompanyLocationResponseSchema,
+  getAdministratorIdsFromMetafield,
+} from "../schemas/company.schema";
 import {
   COMPANY_LOCATION_DELETE_MUTATION,
   COMPANY_MAIN_LOCATION_QUERY,
@@ -22,20 +26,7 @@ const CompanyManagementDataSchema = z.object({
         })
         .nullable()
         .optional(),
-      administrators: z
-        .object({
-          jsonValue: z.array(z.string()).nullable().optional(),
-          references: z.object({
-            nodes: z.array(
-              z.object({
-                __typename: z.literal("Customer"),
-                id: z.string(),
-              }),
-            ),
-          }),
-        })
-        .nullable()
-        .optional(),
+      administrators: CompanyAdministratorsMetafieldSchema,
       locations: z.object({
         nodes: z.array(
           z.object({
@@ -78,13 +69,7 @@ function idsMatch(leftId: string | null | undefined, rightId: string | null | un
 }
 
 function getAdministratorIds(company: ManagedCompany) {
-  const fromReferences =
-    company.administrators?.references?.nodes.map((node) => node.id).filter(Boolean) ?? [];
-  const fromJson = Array.isArray(company.administrators?.jsonValue)
-    ? company.administrators.jsonValue.filter(Boolean)
-    : [];
-
-  return [...new Set([...fromReferences, ...fromJson])];
+  return getAdministratorIdsFromMetafield(company.administrators);
 }
 
 export async function deleteCompanyLocation(

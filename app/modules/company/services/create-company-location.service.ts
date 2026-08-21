@@ -7,7 +7,9 @@ import type {
   CreateCompanyLocationResponse,
 } from "../schemas/company.schema";
 import {
+  CompanyAdministratorsMetafieldSchema,
   CreateCompanyLocationResponseSchema,
+  getAdministratorIdsFromMetafield,
   SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP,
   SHOPIFY_COMPANY_LOCATION_ROLE_VALUES,
 } from "../schemas/company.schema";
@@ -46,20 +48,7 @@ const CompanyManagementDataSchema = z.object({
         })
         .nullable()
         .optional(),
-      administrators: z
-        .object({
-          jsonValue: z.array(z.string()).nullable().optional(),
-          references: z.object({
-            nodes: z.array(
-              z.object({
-                __typename: z.literal("Customer"),
-                id: z.string(),
-              }),
-            ),
-          }),
-        })
-        .nullable()
-        .optional(),
+      administrators: CompanyAdministratorsMetafieldSchema,
       contactRoles: z.object({
         nodes: z.array(CompanyRoleSchema),
       }),
@@ -194,13 +183,7 @@ function findCompanyContactIdByCustomerId(
 }
 
 function getAdministratorIds(company: ManagedCompany) {
-  const fromReferences =
-    company.administrators?.references?.nodes.map((node) => node.id).filter(Boolean) ?? [];
-  const fromJson = Array.isArray(company.administrators?.jsonValue)
-    ? company.administrators.jsonValue.filter(Boolean)
-    : [];
-
-  return [...new Set([...fromReferences, ...fromJson])];
+  return getAdministratorIdsFromMetafield(company.administrators);
 }
 
 function mapInheritedBillingAddress(

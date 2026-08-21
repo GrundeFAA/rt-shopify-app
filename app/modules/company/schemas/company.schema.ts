@@ -10,6 +10,47 @@ export const SHOPIFY_COMPANY_LOCATION_ROLE_NAME_MAP = {
   string
 >;
 
+/**
+ * Shopify can put `null` in metafield `references.nodes` when a customer
+ * reference cannot be resolved. Treat those entries as absent instead of
+ * failing the whole company payload.
+ */
+export const CompanyAdministratorsMetafieldSchema = z
+  .object({
+    jsonValue: z.array(z.string()).nullable().optional(),
+    references: z
+      .object({
+        nodes: z.array(
+          z
+            .object({
+              __typename: z.literal("Customer").optional(),
+              id: z.string(),
+            })
+            .nullable(),
+        ),
+      })
+      .nullable()
+      .optional(),
+  })
+  .nullable()
+  .optional();
+
+export type CompanyAdministratorsMetafield = z.infer<
+  typeof CompanyAdministratorsMetafieldSchema
+>;
+
+export function getAdministratorIdsFromMetafield(
+  administrators: CompanyAdministratorsMetafield,
+): string[] {
+  const fromReferences =
+    administrators?.references?.nodes.flatMap((node) => (node?.id ? [node.id] : [])) ?? [];
+  const fromJson = Array.isArray(administrators?.jsonValue)
+    ? administrators.jsonValue.filter(Boolean)
+    : [];
+
+  return [...new Set([...fromReferences, ...fromJson])];
+}
+
 export const CompanyIdInputSchema = z.object({
   companyId: ShopifyIdSchema,
 });

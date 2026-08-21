@@ -9,6 +9,10 @@ import {
   type RegisterCompanyPayload,
   type RegisterCompanySuccess,
 } from "../schemas/register-company.schema";
+import {
+  CompanyAdministratorsMetafieldSchema,
+  getAdministratorIdsFromMetafield,
+} from "../../company/schemas/company.schema";
 import { rollbackPartialRegistration } from "./register-company-rollback";
 import {
   COMPANY_LOCATIONS_FOR_TAX_ID_QUERY,
@@ -71,20 +75,7 @@ const CompanyContactSummarySchema = z.object({
   }),
 });
 
-const CompanyAdministratorsSchema = z
-  .object({
-    jsonValue: z.array(z.string()).nullable().optional(),
-    references: z.object({
-      nodes: z.array(
-        z.object({
-          id: z.string(),
-          __typename: z.literal("Customer"),
-        }),
-      ),
-    }),
-  })
-  .nullable()
-  .optional();
+const CompanyAdministratorsSchema = CompanyAdministratorsMetafieldSchema;
 
 const CompanySummarySchema = z.object({
   id: z.string(),
@@ -306,13 +297,7 @@ function getAdminRole(company: CompanySummary) {
 }
 
 function getAdministratorIds(company: CompanySummary): string[] {
-  const fromReferences =
-    company.administrators?.references.nodes.map((node) => node.id).filter(Boolean) ?? [];
-  const fromJson = Array.isArray(company.administrators?.jsonValue)
-    ? company.administrators.jsonValue.filter(Boolean)
-    : [];
-
-  return [...new Set([...fromReferences, ...fromJson])];
+  return getAdministratorIdsFromMetafield(company.administrators);
 }
 
 async function findCustomerByEmail(
